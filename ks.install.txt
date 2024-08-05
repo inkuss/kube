@@ -1,5 +1,5 @@
 21.06.2024 Ingolf
-# Einrichtung als Kubernetes-Node
+# Einrichtung von kubectl auf dem lokalen PC
 - Damit sie von der lokalen Maschine aus mit dem Cluster arbeiten können, brauchen sie das offizielle 
   Kubernetes-Kommandozeilenwerkzeug "kubectl".
    kubectl auf Windows PC so installiert: https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/#install-kubectl-binary-with-curl-on-windows
@@ -7,6 +7,15 @@
     kubectl version --client
   Client Version: v1.30.0
   Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+- auf SuSE Linux so installiert
+  cnf kubectl
+  zypper install kubernetes1.28-client
+  type kubectl
+    kubectl is hashed (/usr/bin/kubectl)
+  kubectl version --client
+    Client Version: v1.28.2
+    Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+
 
 25.06.2024
 Quelle: ht.2023.06_ctKubernetes-SB (c't - Artikel aus dem Juni 2023)
@@ -38,7 +47,7 @@ k3s richtet eine frische etcd-Instanz ein.
    Main PID: 78543 (code=exited, status=3)
         CPU: 10ms
 
-Kubectl - Dienstprogramm benötigt eine Konfigurationsdatei, die Ihren Server-Endpunkt, CA-Details, Benutzeranmeldeinformationen zur Authentifizierung enthält. Diese Konfigurationsdatei befindet sich unter** home dir/.kube/config **
+Kubectl - das Dienstprogramm benötigt eine Konfigurationsdatei, die Ihren Server-Endpunkt, CA-Details, Benutzeranmeldeinformationen zur Authentifizierung enthält. Diese Konfigurationsdatei befindet sich unter** home dir/.kube/config **
 Quelle: https://forum.linuxfoundation.org/discussion/864362/couldnt-get-current-server-api-group-list-get-http-localhost-8080-api-timeout-32s-dial-tcp-12
 
 rufe manuell auf
@@ -54,14 +63,13 @@ NAME          STATUS   ROLES                  AGE     VERSION
 folio-k8s11   Ready    control-plane,master   2m47s   v1.29.5+k3s1
 
 Erzeugen Sie die oben angelegte Konfigurationsdatei auf den anderen beiden Maschinen.
-Ports 6443, 2379, 2380 öffnen lassen auf allen drei Kisten.
 [weiter auf Seite 43 - "Damit
 auch die anderen Server als Master in den Cluster aufgenommen werden dürfen,"]
 
 # weiter geht's 26.06.2024
 auf Node 2:
   sudo su
-  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=K10349e52cc0cfdddd5802bc5fb3dec18074590bf825fd06d35a32977346937d974::server:62fcf23eba2f379167336de4c6d62270 sh -s - server --server https://10.9.2.91:6443
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=K10349********::server:62fcf23**** sh -s - server --server https://10.9.2.91:6443
 
 auf dem ersten Server war:
   "Das Installationsskript wird an sh übergeben und mit dem Befehl server --cluster-init ausgeführt. Der letzte Parameter führt dazu, dass k3s eine frische etcd-Instanz einrichtet."
@@ -133,13 +141,16 @@ pod "my-first-nginx" deleted
 Lokal aufrufen; cd ~/kube
 $ kubectl -f first-pod.yml apply
 pod/my-first-nginx created
+$ kubectl get pods -o wide
 
 https://github.com/jamct/kubernetes-einstieg/blob/main/part-2/first-deployment.yml
 
 Pods in einem Namespace:
+kubectl get pods -w # folgt
 kubectl get pods -n backend
+kubectl get pods --all-namespaces
 kubectl get pods|services|deployments|namespaces
 
-Schöner mit Helm
+Schöner mit Helm [ Seite 57 ]
 Auf SuSE-Linux-PC: cd ~/kube
 zypper in helm
