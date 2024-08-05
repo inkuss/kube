@@ -154,3 +154,19 @@ kubectl get pods|services|deployments|namespaces
 Schöner mit Helm [ Seite 57 ]
 Auf SuSE-Linux-PC: cd ~/kube
 zypper in helm
+helm repo add traefik https://helm.traefik.io/traefik
+"traefik" has been added to your repositories
+helm repo update
+
+Cluster löschen:
+  Auf dem 1. Node: ssh folio@folio-k8s11
+  . /usr/local/bin/k3s-uninstall.sh
+Cluster neu aufbauen:
+  curl -sfL https://get.k3s.io | sh -
+    disable: traefik in /etc/rancher/k3s/config.yaml
+  curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+  Einrichten der anderen beiden Nodes
+  kubectl -f first-delpoyment.yml apply
+  kubectl -f namespace.yml apply
+  kubectl -f wordpress.yml apply
+
