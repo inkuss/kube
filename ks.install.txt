@@ -1,0 +1,145 @@
+21.06.2024 Ingolf
+# Einrichtung als Kubernetes-Node
+- Damit sie von der lokalen Maschine aus mit dem Cluster arbeiten können, brauchen sie das offizielle 
+  Kubernetes-Kommandozeilenwerkzeug "kubectl".
+   kubectl auf Windows PC so installiert: https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/#install-kubectl-binary-with-curl-on-windows
+   und auf Windows-Rechner nach /c/Users/kuss/bin/kubectl.exe gelegt (ist schon in $PFAD)
+    kubectl version --client
+  Client Version: v1.30.0
+  Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+
+25.06.2024
+Quelle: ht.2023.06_ctKubernetes-SB (c't - Artikel aus dem Juni 2023)
+Loslegen - Seite 42
+Für die ersten Gehversuche - und auch für kleine und mittelgroße Cluster - 
+  empfehlen wir die Kubernetes-Distribution k3s.
+Kubernetes-Installation mit k3s
+Die k3s-Konfiguration in eine YAML-Datei namens /etc/rancher/k3s/config.yaml schreiben.
+Auf dem ersten der 3 Server das Verzeichnis erzeugen:
+  mkdir -p /etc/rancher/k3s/
+Fürs Erste reicht eine Zeile in der config.yaml:
+  disable: traefik
+  05.08.2024: Das System hat die Datei bei Neustart selbständig als
+    /etc/rancher/k3s/k3s.yaml neu angelegt.
+Auf dem ersten Server ist damit alles bereit für die Installation von k3s:
+  sudo su
+  curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+k3s richtet eine frische etcd-Instanz ein.
+
+ systemctl status k3s-server--cluster-init.service
+ k3s-server--cluster-init.service - Lightweight Kubernetes
+     Loaded: loaded (/etc/systemd/system/k3s-server--cluster-init.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2024-06-25 19:35:24 CEST; 2s ago
+       Docs: https://k3s.io
+    Process: 78539 ExecStartPre=/bin/sh -xc ! /usr/bin/systemctl is-enabled --quiet nm-cloud-setup.service 2>/dev/null (c>
+    Process: 78541 ExecStartPre=/sbin/modprobe br_netfilter (code=exited, status=0/SUCCESS)
+    Process: 78542 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
+    Process: 78543 ExecStart=/usr/local/bin/k3s server--cluster-init (code=exited, status=3)
+   Main PID: 78543 (code=exited, status=3)
+        CPU: 10ms
+
+Kubectl - Dienstprogramm benötigt eine Konfigurationsdatei, die Ihren Server-Endpunkt, CA-Details, Benutzeranmeldeinformationen zur Authentifizierung enthält. Diese Konfigurationsdatei befindet sich unter** home dir/.kube/config **
+Quelle: https://forum.linuxfoundation.org/discussion/864362/couldnt-get-current-server-api-group-list-get-http-localhost-8080-api-timeout-32s-dial-tcp-12
+
+rufe manuell auf
+  sudo su
+  cd /etc/rancher/k3s
+  nohup /usr/local/bin/k3s server &
+anstelle von
+  /usr/local/bin/k3s server--cluster-init (=letzte Zeile des Service-Skriptes /etc/systemd/system/k3s-server--cluster-init.service)
+
+Jetzt geht
+kubectl get nodes
+NAME          STATUS   ROLES                  AGE     VERSION
+folio-k8s11   Ready    control-plane,master   2m47s   v1.29.5+k3s1
+
+Erzeugen Sie die oben angelegte Konfigurationsdatei auf den anderen beiden Maschinen.
+Ports 6443, 2379, 2380 öffnen lassen auf allen drei Kisten.
+[weiter auf Seite 43 - "Damit
+auch die anderen Server als Master in den Cluster aufgenommen werden dürfen,"]
+
+# weiter geht's 26.06.2024
+auf Node 2:
+  sudo su
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=K10349e52cc0cfdddd5802bc5fb3dec18074590bf825fd06d35a32977346937d974::server:62fcf23eba2f379167336de4c6d62270 sh -s - server --server https://10.9.2.91:6443
+
+auf dem ersten Server war:
+  "Das Installationsskript wird an sh übergeben und mit dem Befehl server --cluster-init ausgeführt. Der letzte Parameter führt dazu, dass k3s eine frische etcd-Instanz einrichtet."
+  => letzeres hat wahrscheinlich nicht geklappt.
+
+28.06.2024
+   auf lokalem PC (Windows oder Linux) ein Verzeichnis $HOME/.kube anlegen
+   dort eine Datei config anlegen (Inhalt s. Doku; ist i.W. /etc/rancher/k3s/k3s.yaml)
+   Lokal aufrufen;
+$ kubectl config use-context k8s1
+Switched to context "k8s1"
+$ kubectl get nodes
+  
+    "Lens (k8slens.dev) ist eine grafische Oberfläche, die als Anwendung auf Ihrer Maschine läuft und die Kontexte aus der Kubectl-Konfigurationsdatei übernimmt"
+   Lens auf HBZ-Laptop eingerichtet.
+   first-pod.yml von ct.de/wtzd oder auch https://github.com/jamct/kubernetes-einstieg herunter geladen.
+
+   Jetzt geht http://folio-k8s11.hbz-nrw.de:30000/  "Welcome to nginx!"
+
+k3s deinstallieren mit k3s-uninstall.sh . Das aber nicht aus Versehen machen !
+Es löscht auch config.yaml
+  cat /etc/rancher/k3s/k3s.yaml
+    *** Ende des Kapitels ***
+
+  als nächstes Storage / Volumes einrichten
+  https://docs.k3s.io/storage#setting-up-the-local-storage-provider
+
+  dann Namespaces einrichten. Kafka braucht ein eigenes Namespace.
+
+   Ingress Controller, Load Balancer
+   
+   mit Werkzeug "Helm" vertraut machen
+   Elasticsearch mit Helm installieren.
+   Okapi auf Kubernetes installieren.
+        https://github.com/indexdata/okapi-helm
+   Alles installieren wie auch in der Single Server Doku, nur mit anderen Tools machen.
+     s. hier; aber das wird sich bei mir nicht installieren lassen (z.B. andere StorageClasses)
+     https://gitlab.bib-bvb.de/folio-public/folio-helm
+
+#   Kafka
+Prepare helm
+
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update 
+
+
+# version is optional.
+
+helm -n folio-staging-v2-kafka install kafka -f values-ubl-staging.yaml bitnami/kafka  --version 24.0.8
+
+--set-string controller.persistence.size=8Gi
+
+# Set another PVC Size
+
+helm -n folio-finc-v1-kafka install kafka -f values-ubl-staging.yaml --set-string controller.persistence.size=8Gi bitnami/kafka --version 26.11.3 --debug
+"
+    # Helm ist grob wie ein Paketmanager zu verstehen.
+    # Hier kriege ich Default Values her
+    helm show values bitnami/kafka > kafka-default-values.yaml
+
+    # das ist eine Konfigurationsdatei, die man dem Helm-Chart mitgibt. Das Helm-Chart selber liegt bei bitnami.
+     Helm Chart: https://github.com/bitnami/charts/tree/main/bitnami/kafka
+
+# 05.08.2024
+Kapitel "Container, Pods und Deployments", Seite 46
+kubectl delete pod my-first-nginx
+pod "my-first-nginx" deleted
+
+Lokal aufrufen; cd ~/kube
+$ kubectl -f first-pod.yml apply
+pod/my-first-nginx created
+
+https://github.com/jamct/kubernetes-einstieg/blob/main/part-2/first-deployment.yml
+
+Pods in einem Namespace:
+kubectl get pods -n backend
+kubectl get pods|services|deployments|namespaces
+
+Schöner mit Helm
+Auf SuSE-Linux-PC: cd ~/kube
+zypper in helm
