@@ -102,27 +102,27 @@ metadata:
   name: wp-external
   namespace: frontend
 spec:
-  type: NodePort #Auskommentieren für den Einsatz mit Traefik
+  # type: NodePort #Auskommentieren für den Einsatz mit Traefik
   selector:
     app: wp-web
   ports:
     - protocol: TCP
-      nodePort: 30001 #Auskommentieren für den Einsatz mit Traefik
+    # nodePort: 30001 #Auskommentieren für den Einsatz mit Traefik
       port: 80
       targetPort: 80
 ---
 # Kommentierung entfernen für den Einsatz mit Traefik
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: IngressRoute
-# metadata:
-#   name: wordpress-ingress
-#   namespace: frontend
-# spec:
-#   entryPoints:
-#     - web
-#   routes:
-#     - match: PathPrefix(`/`)
-#       kind: Rule
-#       services:
-#         - name: wp-external
-#           port: 80
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: wordpress-ingress
+  namespace: frontend
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: wp-external
+          port: 80
