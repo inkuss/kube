@@ -35,27 +35,32 @@ Auf dem ersten Server ist damit alles bereit für die Installation von k3s:
   curl -sfL https://get.k3s.io | sh -s - server --cluster-init
 k3s richtet eine frische etcd-Instanz ein.
 
- systemctl status k3s-server--cluster-init.service
- k3s-server--cluster-init.service - Lightweight Kubernetes
-     Loaded: loaded (/etc/systemd/system/k3s-server--cluster-init.service; enabled; vendor preset: enabled)
-     Active: activating (auto-restart) (Result: exit-code) since Tue 2024-06-25 19:35:24 CEST; 2s ago
+ systemctl status k3s.server
+  ● k3s.service - Lightweight Kubernetes
+     Loaded: loaded (/etc/systemd/system/k3s.service; enabled; vendor preset: enabled)
+     Active: active (running) since Tue 2024-08-06 14:49:35 CEST; 5min ago
        Docs: https://k3s.io
-    Process: 78539 ExecStartPre=/bin/sh -xc ! /usr/bin/systemctl is-enabled --quiet nm-cloud-setup.service 2>/dev/null (c>
-    Process: 78541 ExecStartPre=/sbin/modprobe br_netfilter (code=exited, status=0/SUCCESS)
-    Process: 78542 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
-    Process: 78543 ExecStart=/usr/local/bin/k3s server--cluster-init (code=exited, status=3)
-   Main PID: 78543 (code=exited, status=3)
-        CPU: 10ms
+    Process: 214735 ExecStartPre=/bin/sh -xc ! /usr/bin/systemctl is-enabled --quiet nm-cloud-setup.service 2>/dev/null (code=exited, status=0/SUCCESS)
+    Process: 214737 ExecStartPre=/sbin/modprobe br_netfilter (code=exited, status=0/SUCCESS)
+    Process: 214738 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
+   Main PID: 214739 (k3s-server)
+      Tasks: 94
+     Memory: 462.7M
+        CPU: 43.858s
+     CGroup: /system.slice/k3s.service
+             ├─214739 "/usr/local/bin/k3s server" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─214755 "containerd " "" "" "" "" "" "
+             ...
 
 Kubectl - das Dienstprogramm benötigt eine Konfigurationsdatei, die Ihren Server-Endpunkt, CA-Details, Benutzeranmeldeinformationen zur Authentifizierung enthält. Diese Konfigurationsdatei befindet sich unter** home dir/.kube/config **
 Quelle: https://forum.linuxfoundation.org/discussion/864362/couldnt-get-current-server-api-group-list-get-http-localhost-8080-api-timeout-32s-dial-tcp-12
 
-rufe manuell auf
+Alternativ: rufe manuell auf
   sudo su
   cd /etc/rancher/k3s
   nohup /usr/local/bin/k3s server &
 anstelle von
-  /usr/local/bin/k3s server--cluster-init (=letzte Zeile des Service-Skriptes /etc/systemd/system/k3s-server--cluster-init.service)
+  /usr/local/bin/k3s server --cluster-init (=letzte Zeile des Service-Skriptes /etc/systemd/system/k3s.service)
 
 Jetzt geht
 kubectl get nodes
@@ -63,25 +68,31 @@ NAME          STATUS   ROLES                  AGE     VERSION
 folio-k8s11   Ready    control-plane,master   2m47s   v1.29.5+k3s1
 
 Erzeugen Sie die oben angelegte Konfigurationsdatei auf den anderen beiden Maschinen.
-[weiter auf Seite 43 - "Damit
-auch die anderen Server als Master in den Cluster aufgenommen werden dürfen,"]
+[weiter auf Seite 43 - "Damit auch die anderen Server als Master in den Cluster aufgenommen werden dürfen,"]
 
 # weiter geht's 26.06.2024
+  Auf dem ersten Server:
+  TOKEN=`cat /var/lib/rancher/k3s/server/token`
 auf Node 2:
   sudo su
-  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=K10349********::server:62fcf23**** sh -s - server --server https://10.9.2.91:6443
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=$TOKEN sh -s - server --server https://10.9.2.91:6443
+auf Node 3 ebenfalls machen.
+  Bei Neuinstallation zunächst k3s einreißen mit . /usr/local/bin/k3s-uninstall.sh
 
-auf dem ersten Server war:
-  "Das Installationsskript wird an sh übergeben und mit dem Befehl server --cluster-init ausgeführt. Der letzte Parameter führt dazu, dass k3s eine frische etcd-Instanz einrichtet."
-  => letzeres hat wahrscheinlich nicht geklappt.
 
 28.06.2024
    auf lokalem PC (Windows oder Linux) ein Verzeichnis $HOME/.kube anlegen
-   dort eine Datei config anlegen (Inhalt s. Doku; ist i.W. /etc/rancher/k3s/k3s.yaml)
-   Lokal aufrufen;
-$ kubectl config use-context k8s1
-Switched to context "k8s1"
+   dort eine Datei config anlegen. Den Inhalt von /etc/rancher/k3s/k3s.yaml (vom ersten Server) dort hinein kopieren.
+   Dann die IP-Adresse 127.0.0.1 durch die IP-Adresse oder den DNS-Namen (ohne Domain) eines Servers ersetzen.
+   In Zeile 11 von config dem Kontext einen sprechenderen Namen als "default" geben: hier: folio-k8s1
+   Lokal aufrufen:
+$ kubectl config use-context folio-k8s1
+Switched to context "folio-k8s1"
 $ kubectl get nodes
+NAME          STATUS   ROLES                       AGE     VERSION
+folio-k8s11   Ready    control-plane,etcd,master   22h     v1.30.3+k3s1
+folio-k8s12   Ready    control-plane,etcd,master   2m11s   v1.30.3+k3s1
+folio-k8s13   Ready    control-plane,etcd,master   10s     v1.30.3+k3s1
   
     "Lens (k8slens.dev) ist eine grafische Oberfläche, die als Anwendung auf Ihrer Maschine läuft und die Kontexte aus der Kubectl-Konfigurationsdatei übernimmt"
    Lens auf HBZ-Laptop eingerichtet.
@@ -93,45 +104,6 @@ k3s deinstallieren mit k3s-uninstall.sh . Das aber nicht aus Versehen machen !
 Es löscht auch config.yaml
   cat /etc/rancher/k3s/k3s.yaml
     *** Ende des Kapitels ***
-
-  als nächstes Storage / Volumes einrichten
-  https://docs.k3s.io/storage#setting-up-the-local-storage-provider
-
-  dann Namespaces einrichten. Kafka braucht ein eigenes Namespace.
-
-   Ingress Controller, Load Balancer
-   
-   mit Werkzeug "Helm" vertraut machen
-   Elasticsearch mit Helm installieren.
-   Okapi auf Kubernetes installieren.
-        https://github.com/indexdata/okapi-helm
-   Alles installieren wie auch in der Single Server Doku, nur mit anderen Tools machen.
-     s. hier; aber das wird sich bei mir nicht installieren lassen (z.B. andere StorageClasses)
-     https://gitlab.bib-bvb.de/folio-public/folio-helm
-
-#   Kafka
-Prepare helm
-
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update 
-
-
-# version is optional.
-
-helm -n folio-staging-v2-kafka install kafka -f values-ubl-staging.yaml bitnami/kafka  --version 24.0.8
-
---set-string controller.persistence.size=8Gi
-
-# Set another PVC Size
-
-helm -n folio-finc-v1-kafka install kafka -f values-ubl-staging.yaml --set-string controller.persistence.size=8Gi bitnami/kafka --version 26.11.3 --debug
-"
-    # Helm ist grob wie ein Paketmanager zu verstehen.
-    # Hier kriege ich Default Values her
-    helm show values bitnami/kafka > kafka-default-values.yaml
-
-    # das ist eine Konfigurationsdatei, die man dem Helm-Chart mitgibt. Das Helm-Chart selber liegt bei bitnami.
-     Helm Chart: https://github.com/bitnami/charts/tree/main/bitnami/kafka
 
 # 05.08.2024
 Kapitel "Container, Pods und Deployments", Seite 46
@@ -161,12 +133,151 @@ helm repo update
 Cluster löschen:
   Auf dem 1. Node: ssh folio@folio-k8s11
   . /usr/local/bin/k3s-uninstall.sh
+  das auch auf allen anderen Nodes machen.
 Cluster neu aufbauen:
   curl -sfL https://get.k3s.io | sh -
     disable: traefik in /etc/rancher/k3s/config.yaml
   curl -sfL https://get.k3s.io | sh -s - server --cluster-init
-  Einrichten der anderen beiden Nodes
-  kubectl -f first-delpoyment.yml apply
+  Einrichten der anderen beiden Nodes:
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=$TOKEN sh -s - server --server https://10.9.2.91:6443
+  
+  kubectl -f first-deployment.yml apply
   kubectl -f namespace.yml apply
   kubectl -f wordpress.yml apply
+
+06.08.2024
+  Das Verzeichnis .kube auch nach /root kopieren, wenn man mit root-Kennung arbeitet!
+  kuss-pc-linux-r217:/home/kuss # cp -pr .kube/ /root
+
+  helm install traefik traefik/traefik
+    Error: INSTALLATION FAILED: Unable to continue with install: IngressClass "traefik" in namespace "" exists and cannot be imported into the current release: invalid ownership metadata; annotation validation error: key "meta.helm.sh/release-namespace" must equal "default": current value is "kube-system"
+
+   Egal, weiter.
+   In wordpress.yml die Kommentierungen entfernen.
+   kubectl -f wordpress.yml apply
+   Jetzt geht http://folio-k8s11.hbz-nrw.de/
+   *** ENDE des Kapitels ***
+
+#   Kafka
+Prepare helm
+
+helm repo add bitnami https://charts.bitnami.com/bitnami
+  "bitnami" has been added to your repositories
+helm repo update 
+  ...Successfully got an update from the "traefik" chart repository
+  ...Successfully got an update from the "bitnami" chart repository
+  Update Complete. ⎈Happy Helming!⎈
+
+    # Helm ist grob wie ein Paketmanager zu verstehen.
+    # Hier kriege ich Default Values her
+    helm show values bitnami/kafka > kafka-default-values.yaml
+    cp kafka-default-values.yaml kafka-hbz-staging-values.yml
+
+    # das ist eine Konfigurationsdatei, die man dem Helm-Chart mitgibt. Das Helm-Chart selber liegt bei bitnami.
+     Helm Chart: https://github.com/bitnami/charts/tree/main/bitnami/kafka
+
+Namensraum für Kafka anlegen:
+  mv namespace.yml namespaces.yml
+  neuen Namensraum folio-staging-v1-kafka eintragen, mit kubectl anwenden.
+
+# Version ist optional.
+
+helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
+  Error: INSTALLATION FAILED: 1 error occurred:
+        * serviceaccounts "kafka" already exists
+
+# was läuft alles ?
+  kubectl get pods --all-namespaces
+  Kafka Log anzeigen:
+    kubectl logs -n folio-staging-v1-kafka kafka-controller-0
+  Log streamen / folgen:
+    kubectl logs -n folio-staging-v1-kafka --follow=true kafka-controller-0
+
+  Verschiedene Fehlermeldungen; Kafka kommt nicht hoch:
+  [2024-08-06 16:18:30,050] INFO [BrokerLifecycleManager id=0] Transitioning from STARTING to SHUTTING_DOWN. (kafka.server.BrokerLifecycleManager)
+[2024-08-06 16:18:30,050] INFO [broker-0-to-controller-heartbeat-channel-manager]: Shutting down (kafka.server.NodeToControllerRequestThread)
+[2024-08-06 16:18:30,051] INFO [broker-0-to-controller-heartbeat-channel-manager]: Stopped (kafka.server.NodeToControllerRequestThread)
+[2024-08-06 16:18:30,051] INFO [broker-0-to-controller-heartbeat-channel-manager]: Shutdown completed (kafka.server.NodeToControllerRequestThread)
+[2024-08-06 16:18:30,051] ERROR [BrokerServer id=0] Received a fatal error while waiting for the controller to acknowledge that we are caught up (kafka.server.BrokerServer)
+java.util.concurrent.CancellationException
+        at java.base/java.util.concurrent.CompletableFuture.cancel(CompletableFuture.java:2478)
+        at kafka.server.BrokerLifecycleManager$ShutdownEvent.run(BrokerLifecycleManager.scala:638)
+        at org.apache.kafka.queue.KafkaEventQueue$EventHandler.run(KafkaEventQueue.java:190)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+[2024-08-06 16:18:30,063] INFO [BrokerServer id=0] Transition from STARTING to STARTED (kafka.server.BrokerServer)
+[2024-08-06 16:18:30,065] ERROR [BrokerServer id=0] Fatal error during broker startup. Prepare to shutdown (kafka.server.BrokerServer)
+java.lang.RuntimeException: Received a fatal error while waiting for the controller to acknowledge that we are caught up
+        at org.apache.kafka.server.util.FutureUtils.waitWithLogging(FutureUtils.java:72)
+        at kafka.server.BrokerServer.startup(BrokerServer.scala:508)
+        at kafka.server.KafkaRaftServer.$anonfun$startup$2(KafkaRaftServer.scala:97)
+        at kafka.server.KafkaRaftServer.$anonfun$startup$2$adapted(KafkaRaftServer.scala:97)
+        at scala.Option.foreach(Option.scala:407)
+        at kafka.server.KafkaRaftServer.startup(KafkaRaftServer.scala:97)
+        at kafka.Kafka$.main(Kafka.scala:112)
+        at kafka.Kafka.main(Kafka.scala)
+Caused by: java.util.concurrent.CancellationException
+        at java.base/java.util.concurrent.CompletableFuture.cancel(CompletableFuture.java:2478)
+        at kafka.server.BrokerLifecycleManager$ShutdownEvent.run(BrokerLifecycleManager.scala:638)
+        at org.apache.kafka.queue.KafkaEventQueue$EventHandler.run(KafkaEventQueue.java:190)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+[2024-08-06 16:18:30,065] INFO [BrokerServer id=0] Transition from STARTED to SHUTTING_DOWN (kafka.server.BrokerServer)
+[2024-08-06 16:18:30,065] INFO [BrokerServer id=0] shutting down (kafka.server.BrokerServer)
+[2024-08-06 16:18:30,066] INFO [SocketServer listenerType=BROKER, nodeId=0] Stopping socket server request processors (kafka.network.SocketServer)
+[2024-08-06 16:18:30,069] ERROR Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null (kafka.network.DataPlaneAcceptor)
+java.lang.NullPointerException: Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null
+        at kafka.network.Acceptor.$anonfun$closeAll$2(SocketServer.scala:712)
+        at kafka.utils.CoreUtils$.swallow(CoreUtils.scala:68)
+        at kafka.network.Acceptor.closeAll(SocketServer.scala:712)
+        at kafka.network.Acceptor.close(SocketServer.scala:679)
+        at kafka.network.SocketServer.$anonfun$stopProcessingRequests$4(SocketServer.scala:288)
+        at kafka.network.SocketServer.$anonfun$stopProcessingRequests$4$adapted(SocketServer.scala:288)
+        at scala.collection.Iterator.foreach(Iterator.scala:943)
+        at scala.collection.Iterator.foreach$(Iterator.scala:943)
+        at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)
+        at scala.collection.MapLike$DefaultValuesIterable.foreach(MapLike.scala:214)
+        at kafka.network.SocketServer.stopProcessingRequests(SocketServer.scala:288)
+        at kafka.server.BrokerServer.$anonfun$shutdown$5(BrokerServer.scala:664)
+        at kafka.utils.CoreUtils$.swallow(CoreUtils.scala:68)
+        at kafka.server.BrokerServer.shutdown(BrokerServer.scala:664)
+        at kafka.server.KafkaBroker.shutdown(KafkaBroker.scala:99)
+        at kafka.server.KafkaBroker.shutdown$(KafkaBroker.scala:99)
+        at kafka.server.BrokerServer.shutdown(BrokerServer.scala:68)
+        at kafka.server.BrokerServer.startup(BrokerServer.scala:561)
+        at kafka.server.KafkaRaftServer.$anonfun$startup$2(KafkaRaftServer.scala:97)
+        at kafka.server.KafkaRaftServer.$anonfun$startup$2$adapted(KafkaRaftServer.scala:97)
+        at scala.Option.foreach(Option.scala:407)
+        at kafka.server.KafkaRaftServer.startup(KafkaRaftServer.scala:97)
+        at kafka.Kafka$.main(Kafka.scala:112)
+        at kafka.Kafka.main(Kafka.scala)
+[2024-08-06 16:18:30,072] INFO Node to controller channel manager for heartbeat shutdown (kafka.server.NodeToControllerChannelManagerImpl)
+[2024-08-06 16:18:30,075] ERROR Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null (kafka.network.DataPlaneAcceptor)
+
+Die Pods werden immer wieder angestartet und stürzen dann wieder ab; nach 5 Minuten oder so:
+kubectl get pods -n folio-staging-v1-kafka
+NAME                 READY   STATUS             RESTARTS        AGE
+kafka-controller-0   0/1     Running            8 (5m11s ago)   25m
+kafka-controller-1   0/1     Running            8 (5m18s ago)   25m
+kafka-controller-2   0/1     CrashLoopBackOff   7 (5m3s ago)    25m
+
+
+# Set another PVC Size
+
+#helm -n folio-finc-v1-kafka install kafka -f values-ubl-staging.yaml --set-string controller.persistence.size=8Gi bitnami/kafka --version 26.11.3 --debug
+
+-----------------------------------------------------------------
+
+  als nächstes Storage / Volumes einrichten
+  https://docs.k3s.io/storage#setting-up-the-local-storage-provider
+
+  dann Namespaces einrichten. Kafka braucht ein eigenes Namespace. Erl.
+
+   Ingress Controller, Load Balancer
+   
+   mit Werkzeug "Helm" vertraut machen.
+   Elasticsearch mit Helm installieren.
+   Okapi auf Kubernetes installieren.
+        https://github.com/indexdata/okapi-helm
+   Alles installieren wie auch in der Single Server Doku, nur mit anderen Tools machen.
+     s. hier; aber das wird sich bei mir nicht installieren lassen (z.B. andere StorageClasses)
+     https://gitlab.bib-bvb.de/folio-public/folio-helm
 
