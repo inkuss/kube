@@ -282,3 +282,85 @@ kafka-controller-2   0/1     CrashLoopBackOff   7 (5m3s ago)    25m
      s. hier; aber das wird sich bei mir nicht installieren lassen (z.B. andere StorageClasses)
      https://gitlab.bib-bvb.de/folio-public/folio-helm
 
+07.08.2024
+Hier finden Sie alle Beispiele zum mehrteiligen Einstieg in den Container-Orchestrator Kubernetes. Die zugehörigen Artikel erscheinen seit Ende 2022 gedruckt in c’t und bei Heise+. Hier finden Sie alle Artikel:
+  https://github.com/jamct/kubernetes-einstieg
+
+weiter mit "Geheimnisse im Cluster", Seite 62.
+
+Installation postgresql
+***********************
+helm search repo postgresql
+NAME                    CHART VERSION   APP VERSION     DESCRIPTION                                       
+bitnami/postgresql      15.5.20         16.3.0          PostgreSQL (Postgres) is an open source object-...
+bitnami/postgresql-ha   14.2.16         16.3.0          This PostgreSQL cluster solution includes the P...
+bitnami/supabase        5.3.3           1.24.5          Supabase is an open source Firebase alternative...
+
+Default Installation von PostgreSQL mit Helm (Quelle: https://www.trion.de/news/2022/03/01/postgres-mit-helm-in-kubernetes.html)
+helm install -n backend pg bitnami/postgresql --set volumePermissions.enabled=true
+NAME: pg
+LAST DEPLOYED: Wed Aug  7 16:38:17 2024
+NAMESPACE: backend
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: postgresql
+CHART VERSION: 15.5.20
+APP VERSION: 16.3.0
+
+** Please be patient while the chart is being deployed **
+
+PostgreSQL can be accessed via port 5432 on the following DNS names from within your cluster:
+
+    pg-postgresql.backend.svc.cluster.local - Read/Write connection
+
+To get the password for "postgres" run:
+
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace backend pg-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+
+To connect to your database run the following command:
+
+    kubectl run pg-postgresql-client --rm --tty -i --restart='Never' --namespace backend --image docker.io/bitnami/postgresql:16.3.0-debian-12-r23 --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+      --command -- psql --host pg-postgresql -U postgres -d postgres -p 5432
+
+    > NOTE: If you access the container using bash, make sure that you execute "/opt/bitnami/scripts/postgresql/entrypoint.sh /bin/bash" in order to avoid the error "psql: local user with ID 1001} does not exist"
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace backend svc/pg-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
+
+WARNING: The configured password will be ignored on new installation in case when previous PostgreSQL release was deleted through the helm command. In that case, old PVC will have an old password, and setting it through helm won't take effect. Deleting persistent volumes (PVs) will solve the issue.
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production installations, please set the following values according to your workload needs:
+  - primary.resources
+  - readReplicas.resources
+  - volumePermissions.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+s. auch hier: https://github.com/bitnami/charts/tree/main/bitnami/postgresql/#installing-the-chart
+oder installiere ohne Helm: https://www.sumologic.com/blog/kubernetes-deploy-postgres/
+und so wird man es wieder los:
+  helm delete -n backend pg
+
+Am Ende von Seite 66:
+kubectl -f wordpress-with-pvc.yml apply
+  deployment.apps/wb-database-deployment configured
+  deployment.apps/wb-web-deployment configured
+http://folio-k8s11.hbz-nrw.de/
+  Error establishing a database connection
+ kubectl logs -n backend wb-database-deployment-86d8c6747d-9crdt
+   liefert keine Informationen
+
+*** FOLIO-Installation
+helm repo add bvb-repo https://gitlab.bib-bvb.de/api/v4/projects/128/packages/helm/stable
+git clone https://gitlab.bib-bvb.de/folio-public/folio-helm
+cd folio-helm
+cp global-values-example.yaml global-values.yaml
+- das Volume mit einer Kubernetes Speicherklasse nutzen !
+  nas-vm1:/export/folio-kubernetes-storage 1073741824      3072 1071627264   1% /storage
+
+Installieren Sie elasticsearch
+weiter mit bitnami/elasticsearch-values.yml
+  dann : helm install elasticsearch bitnami/elasticsearch -f bitnami/elastic-values.yml
