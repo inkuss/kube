@@ -186,6 +186,7 @@ Namensraum für Kafka anlegen:
 helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
   Error: INSTALLATION FAILED: 1 error occurred:
         * serviceaccounts "kafka" already exists
+helm -n folio-staging-v1-kafka delete kafka
 
 # was läuft alles ?
   kubectl get pods --all-namespaces
@@ -364,3 +365,32 @@ cp global-values-example.yaml global-values.yaml
 Installieren Sie elasticsearch
 weiter mit bitnami/elasticsearch-values.yml
   dann : helm install elasticsearch bitnami/elasticsearch -f bitnami/elastic-values.yml
+
+08.08.2024
+Wordpress mit persistent Volume Claim
+um das Volume zu nutzen, fehlten noch diese Charts:
+kubectl -f pvc.yml apply
+kubectl -f wordpress-secrets.yml apply
+
+Jetzt müsste sich das komplette Wordpress-Beispiel so deployen lassen:
+kubectl -f wordpress-namespaces.yml apply
+kubectl -f wordpress-pvc.yml apply
+kubectl -f wordpress-secrets.yml apply
+kubectl -f wordpress-deployments.yml apply
+
+# gucken, welche Pods jetzt wo laufen:
+kubectl get pods -n backend -o wide
+kubectl get pods -n frontend -o wide
+
+# wie kann ich Befehle in dem Container ausführen ?
+kubectl exec -h
+kubectl exec deploy/wp-database-deployment -i -t -- bash -il
+  Error from server (NotFound): deployments.apps "wp-database-deployment" not found
+PVC ist aber hier angelegt:
+  root@folio-k8s12:/var/lib/rancher/k3s/storage/pvc-e033ae74-2465-45dd-8611-50efc29dcef4_backend_pvc-wp-db/
+    und darin sind meine Datenbank-Files!
+Jetzt aufrufen:
+  http://folio-k8s11.hbz-nrw.de   user: wp  passw: secretWp
+Aber irgendwie passiert auf der Seite nichts. In den PVC wird aber geschrieben (Benutzer wp)
+
+ kubectl logs -n backend --follow=true wp-database-deployment-654f8676c6-ksbw4  # sieht gut aus

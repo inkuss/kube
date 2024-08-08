@@ -1,13 +1,11 @@
---- # Backend
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: backend
----
+# Beispiel einer Wordpress-Installation mit Frontend und Backend (Datenbank)
+# Deployments, Services und Ingress
+# 
+# Deployment der Datenbank im Backend
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wb-database-deployment
+  name: wp-database-deployment
   namespace: backend
   labels:
     app: wp-database
@@ -25,21 +23,38 @@ spec:
       labels:
         app: wp-database
     spec:
+      volumes:
+        - name: volume-wp-db
+          persistentVolumeClaim:
+            claimName: pvc-wp-db
       containers:
         - name: mariadb
           image: mariadb
+          volumeMounts:
+            - mountPath: "/var/lib/mysql"
+              name: volume-wp-db
           ports:
             - containerPort: 3306
           env:
             - name: MARIADB_ROOT_PASSWORD
-              value: "verySecret"
+              valueFrom:
+                secretKeyRef:
+                  name: secret-wp-db
+                  key: rootPassword
             - name: MARIADB_DATABASE
               value: "wp"
             - name: MARIADB_USER
-              value: "wp"
+              valueFrom:
+                secretKeyRef:
+                  name: secret-wp-db
+                  key: username
             - name: MARIADB_PASSWORD
-              value: "secretWp"
+              valueFrom:
+                secretKeyRef:
+                  name: secret-wp-db
+                  key: password
 ---
+# Ein Service für das Backend. Bringt den Port über TCP von innen nach außen.
 apiVersion: v1
 kind: Service
 metadata:
@@ -52,17 +67,12 @@ spec:
     - protocol: TCP
       port: 3306
       targetPort: 3306
-
---- # Frontend
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: frontend
 ---
+# Deployment des Frontends
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wb-web-deployment
+  name: wp-web-deployment
   namespace: frontend
   labels:
     app: wp-web
@@ -86,16 +96,22 @@ spec:
           image: wordpress:latest
           ports:
             - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: config-wp-fe
           env:
-            - name: WORDPRESS_DB_HOST
-              value: "wp-database.backend"
-            - name: WORDPRESS_DB_NAME
-              value: "wp"
             - name: WORDPRESS_DB_USER
-              value: "wp"
+              valueFrom:
+                secretKeyRef:
+                  name: secret-wp-fe
+                  key: username
             - name: WORDPRESS_DB_PASSWORD
-              value: "secretWp"
+              valueFrom:
+                secretKeyRef:
+                  name: secret-wp-fe
+                  key: password
 ---
+# Ein Service für das Frontend
 apiVersion: v1
 kind: Service
 metadata:
@@ -111,6 +127,7 @@ spec:
       port: 80
       targetPort: 80
 ---
+# Ein Ingress für das Frontend
 # Kommentierung entfernen für den Einsatz mit Traefik
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
