@@ -1,0 +1,14 @@
+# Wordpress-Beispiel: Namespaces
+# 
+---
+# Namespace für das Backend (Datenbank)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend
+---
+# Namespace für das Frontend (Wordpress)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend
