@@ -184,8 +184,76 @@ Namensraum für Kafka anlegen:
 # Version ist optional.
 
 helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
-  Error: INSTALLATION FAILED: 1 error occurred:
-        * serviceaccounts "kafka" already exists
+NAME: kafka
+LAST DEPLOYED: Fri Aug  9 14:30:51 2024
+NAMESPACE: folio-staging-v1-kafka
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: kafka
+CHART VERSION: 30.0.3
+APP VERSION: 3.8.0
+
+** Please be patient while the chart is being deployed **
+
+Kafka can be accessed by consumers via port 9092 on the following DNS name from within your cluster:
+
+    kafka.folio-staging-v1-kafka.svc.cluster.local
+
+Each Kafka broker can be accessed by producers via port 9092 on the following DNS name(s) from within your cluster:
+
+    kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-1.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-2.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+
+The CLIENT listener for Kafka client connections from within your cluster have been configured with the following security settings:
+    - SASL authentication
+
+To connect a client to your Kafka, you need to create the 'client.properties' configuration files with the content below:
+
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=SCRAM-SHA-256
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+    username="user1" \
+    password="$(kubectl get secret kafka-user-passwords --namespace folio-staging-v1-kafka -o jsonpath='{.data.client-passwords}' | bas
+e64 -d | cut -d , -f 1)";
+
+To create a pod that you can use as a Kafka client run the following commands:
+
+    kubectl run kafka-client --restart='Never' --image docker.io/bitnami/kafka:3.8.0-debian-12-r0 --namespace folio-staging-v1-kafka --
+command -- sleep infinity
+    kubectl cp --namespace folio-staging-v1-kafka /path/to/client.properties kafka-client:/tmp/client.properties
+    kubectl exec --tty -i kafka-client --namespace folio-staging-v1-kafka -- bash
+
+    PRODUCER:
+        kafka-console-producer.sh \
+            --producer.config /tmp/client.properties \
+            --broker-list kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-1
+.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-2.kafka-controller-headless.folio-staging-v1-
+kafka.svc.cluster.local:9092 \
+            --topic test
+
+    CONSUMER:
+        kafka-console-consumer.sh \
+            --consumer.config /tmp/client.properties \
+            --bootstrap-server kafka.folio-staging-v1-kafka.svc.cluster.local:9092 \
+            --topic test \
+            --from-beginning
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production
+ installations, please set the following values according to your workload needs:
+  - controller.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+⚠ SECURITY WARNING: Original containers have been substituted. This Helm chart was designed, tested, and validated on multiple platform
+s using a specific set of Bitnami and Tanzu Application Catalog containers. Substituting other containers is likely to cause degraded s
+ecurity and performance, broken chart features, and missing environment variables.
+
+Substituted images detected:
+  - docker.io/bitnami/kafka:3.8.0-debian-12-r0
+  - docker.io/bitnami/kubectl:1.30.3-debian-12-r4
+
 helm -n folio-staging-v1-kafka delete kafka
 
 # was läuft alles ?
@@ -194,72 +262,6 @@ helm -n folio-staging-v1-kafka delete kafka
     kubectl logs -n folio-staging-v1-kafka kafka-controller-0
   Log streamen / folgen:
     kubectl logs -n folio-staging-v1-kafka --follow=true kafka-controller-0
-
-  Verschiedene Fehlermeldungen; Kafka kommt nicht hoch:
-  [2024-08-06 16:18:30,050] INFO [BrokerLifecycleManager id=0] Transitioning from STARTING to SHUTTING_DOWN. (kafka.server.BrokerLifecycleManager)
-[2024-08-06 16:18:30,050] INFO [broker-0-to-controller-heartbeat-channel-manager]: Shutting down (kafka.server.NodeToControllerRequestThread)
-[2024-08-06 16:18:30,051] INFO [broker-0-to-controller-heartbeat-channel-manager]: Stopped (kafka.server.NodeToControllerRequestThread)
-[2024-08-06 16:18:30,051] INFO [broker-0-to-controller-heartbeat-channel-manager]: Shutdown completed (kafka.server.NodeToControllerRequestThread)
-[2024-08-06 16:18:30,051] ERROR [BrokerServer id=0] Received a fatal error while waiting for the controller to acknowledge that we are caught up (kafka.server.BrokerServer)
-java.util.concurrent.CancellationException
-        at java.base/java.util.concurrent.CompletableFuture.cancel(CompletableFuture.java:2478)
-        at kafka.server.BrokerLifecycleManager$ShutdownEvent.run(BrokerLifecycleManager.scala:638)
-        at org.apache.kafka.queue.KafkaEventQueue$EventHandler.run(KafkaEventQueue.java:190)
-        at java.base/java.lang.Thread.run(Thread.java:840)
-[2024-08-06 16:18:30,063] INFO [BrokerServer id=0] Transition from STARTING to STARTED (kafka.server.BrokerServer)
-[2024-08-06 16:18:30,065] ERROR [BrokerServer id=0] Fatal error during broker startup. Prepare to shutdown (kafka.server.BrokerServer)
-java.lang.RuntimeException: Received a fatal error while waiting for the controller to acknowledge that we are caught up
-        at org.apache.kafka.server.util.FutureUtils.waitWithLogging(FutureUtils.java:72)
-        at kafka.server.BrokerServer.startup(BrokerServer.scala:508)
-        at kafka.server.KafkaRaftServer.$anonfun$startup$2(KafkaRaftServer.scala:97)
-        at kafka.server.KafkaRaftServer.$anonfun$startup$2$adapted(KafkaRaftServer.scala:97)
-        at scala.Option.foreach(Option.scala:407)
-        at kafka.server.KafkaRaftServer.startup(KafkaRaftServer.scala:97)
-        at kafka.Kafka$.main(Kafka.scala:112)
-        at kafka.Kafka.main(Kafka.scala)
-Caused by: java.util.concurrent.CancellationException
-        at java.base/java.util.concurrent.CompletableFuture.cancel(CompletableFuture.java:2478)
-        at kafka.server.BrokerLifecycleManager$ShutdownEvent.run(BrokerLifecycleManager.scala:638)
-        at org.apache.kafka.queue.KafkaEventQueue$EventHandler.run(KafkaEventQueue.java:190)
-        at java.base/java.lang.Thread.run(Thread.java:840)
-[2024-08-06 16:18:30,065] INFO [BrokerServer id=0] Transition from STARTED to SHUTTING_DOWN (kafka.server.BrokerServer)
-[2024-08-06 16:18:30,065] INFO [BrokerServer id=0] shutting down (kafka.server.BrokerServer)
-[2024-08-06 16:18:30,066] INFO [SocketServer listenerType=BROKER, nodeId=0] Stopping socket server request processors (kafka.network.SocketServer)
-[2024-08-06 16:18:30,069] ERROR Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null (kafka.network.DataPlaneAcceptor)
-java.lang.NullPointerException: Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null
-        at kafka.network.Acceptor.$anonfun$closeAll$2(SocketServer.scala:712)
-        at kafka.utils.CoreUtils$.swallow(CoreUtils.scala:68)
-        at kafka.network.Acceptor.closeAll(SocketServer.scala:712)
-        at kafka.network.Acceptor.close(SocketServer.scala:679)
-        at kafka.network.SocketServer.$anonfun$stopProcessingRequests$4(SocketServer.scala:288)
-        at kafka.network.SocketServer.$anonfun$stopProcessingRequests$4$adapted(SocketServer.scala:288)
-        at scala.collection.Iterator.foreach(Iterator.scala:943)
-        at scala.collection.Iterator.foreach$(Iterator.scala:943)
-        at scala.collection.AbstractIterator.foreach(Iterator.scala:1431)
-        at scala.collection.MapLike$DefaultValuesIterable.foreach(MapLike.scala:214)
-        at kafka.network.SocketServer.stopProcessingRequests(SocketServer.scala:288)
-        at kafka.server.BrokerServer.$anonfun$shutdown$5(BrokerServer.scala:664)
-        at kafka.utils.CoreUtils$.swallow(CoreUtils.scala:68)
-        at kafka.server.BrokerServer.shutdown(BrokerServer.scala:664)
-        at kafka.server.KafkaBroker.shutdown(KafkaBroker.scala:99)
-        at kafka.server.KafkaBroker.shutdown$(KafkaBroker.scala:99)
-        at kafka.server.BrokerServer.shutdown(BrokerServer.scala:68)
-        at kafka.server.BrokerServer.startup(BrokerServer.scala:561)
-        at kafka.server.KafkaRaftServer.$anonfun$startup$2(KafkaRaftServer.scala:97)
-        at kafka.server.KafkaRaftServer.$anonfun$startup$2$adapted(KafkaRaftServer.scala:97)
-        at scala.Option.foreach(Option.scala:407)
-        at kafka.server.KafkaRaftServer.startup(KafkaRaftServer.scala:97)
-        at kafka.Kafka$.main(Kafka.scala:112)
-        at kafka.Kafka.main(Kafka.scala)
-[2024-08-06 16:18:30,072] INFO Node to controller channel manager for heartbeat shutdown (kafka.server.NodeToControllerChannelManagerImpl)
-[2024-08-06 16:18:30,075] ERROR Cannot invoke "java.nio.channels.ServerSocketChannel.close()" because the return value of "kafka.network.Acceptor.serverChannel()" is null (kafka.network.DataPlaneAcceptor)
-
-Die Pods werden immer wieder angestartet und stürzen dann wieder ab; nach 5 Minuten oder so:
-kubectl get pods -n folio-staging-v1-kafka
-NAME                 READY   STATUS             RESTARTS        AGE
-kafka-controller-0   0/1     Running            8 (5m11s ago)   25m
-kafka-controller-1   0/1     Running            8 (5m18s ago)   25m
-kafka-controller-2   0/1     CrashLoopBackOff   7 (5m3s ago)    25m
 
 
 # Set another PVC Size
@@ -394,3 +396,35 @@ Jetzt aufrufen:
 Aber irgendwie passiert auf der Seite nichts. In den PVC wird aber geschrieben (Benutzer wp)
 
  kubectl logs -n backend --follow=true wp-database-deployment-654f8676c6-ksbw4  # sieht gut aus
+
+# 09.08.2024
+Grafische Oberfläche: default Kubernetes Dashboard
+  https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+Was ich editiere (YAML-Dateien) sind Manifestationen von Helm-Charts
+HashiCorp: Ein Passwort-Store, der Secrets ablegen kann (s. Frankfurt Workshop)
+
+https://gitlab.bib-bvb.de/folio-public/
+Create/copy Secrets
+  "das brauchen wir nicht mehr"  "Secrtes, um auf das Repo zuzugreigen"
+  "eigentliche Passwörter werden beim Anlegen automatisch in Kubernetes angelegt; kubectl get secrets"
+Helm Charts und 3 Repos, aus denen Images gebaut werden
+Tools; das was ICH auf bei Single Server iauf dem Terminal mache
+https://gitlab.bib-bvb.de/folio-public/folio-tools/container_registry
+Templates: https://gitlab.bib-bvb.de/folio-public/folio-helm/-/blob/main/okapi/templates/okapi.deployment.yaml?ref_type=heads
+
+Installation Helm auf Windows über https://github.com/helm/helm/releases ;
+  funktioniert jetzt; mit Hilfe der Kollegen
+
+"kafka-values.yaml" muss ich zwingend anpassen
+  => Kafka heute, zusammen mit den Kollegen, erfolgreich installiert :-) Es kommen keine Fehlermeldungen beim Install.
+     Die logs sehen gut aus.
+      helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka
+      kubectl logs -n folio-staging-v1-kafka --follow kafka-controller-0
+
+Pullen von Florians Repo:
+  - inkuss klonen
+  - bvb als remote hinzufügen:  git remote add bvb https://gitlab.bib-bvb.de/folio-public/folio-helm.git
+  - git pull bvb main
+global-values wird noch benutzt, aber immer weniger. Florian K. macht eine Anpassung bis 23.08.
+Zwischenzeitlich könnte ich einen Ingress mit nginx installieren
+erst postgres installieren, dann kann man schon mit Okapi anfangen ; Florian K. zieht Okapi aus privatem Repo, aber eigentlich gibt es dazu keinen Grund mehr
