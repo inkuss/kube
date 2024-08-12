@@ -479,3 +479,9 @@ Secrets speichern mit HashiCorp Vault
   "Um aus der Quelle zu kompilieren, benötigen Sie Go installiert und richtig konfiguriert (einschließlich GOPATHUmgebungsvariablensatz)"
 Secrets in KeePassXC + NextCloud speichern
 --------------------------------------
+
+hier weiter:
+Helm Charts und 3 Repos, aus denen Images gebaut werden:
+https://gitlab.bib-bvb.de/folio-public/folio-tools/container_registry
+https://gitlab.bib-bvb.de/folio-public/folio-helm/-/blob/main/okapi/templates/okapi.deployment.yaml?ref_type=heads
+Erst postgres installieren, dann kann man schon mit Okapi anfangen 
