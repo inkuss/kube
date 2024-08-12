@@ -1,0 +1,481 @@
+21.06.2024 Ingolf
+# Einrichtung von kubectl auf dem lokalen PC
+- Damit sie von der lokalen Maschine aus mit dem Cluster arbeiten können, brauchen sie das offizielle 
+  Kubernetes-Kommandozeilenwerkzeug "kubectl".
+   kubectl auf Windows PC so installiert: https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/#install-kubectl-binary-with-curl-on-windows
+   und auf Windows-Rechner nach /c/Users/kuss/bin/kubectl.exe gelegt (ist schon in $PFAD)
+    kubectl version --client
+  Client Version: v1.30.0
+  Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+- auf SuSE Linux so installiert
+  cnf kubectl
+  zypper install kubernetes1.28-client
+  type kubectl
+    kubectl is hashed (/usr/bin/kubectl)
+  kubectl version --client
+    Client Version: v1.28.2
+    Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+
+
+25.06.2024
+Quelle: ht.2023.06_ctKubernetes-SB (c't - Artikel aus dem Juni 2023)
+Loslegen - Seite 42
+Für die ersten Gehversuche - und auch für kleine und mittelgroße Cluster - 
+  empfehlen wir die Kubernetes-Distribution k3s.
+Kubernetes-Installation mit k3s
+Die k3s-Konfiguration in eine YAML-Datei namens /etc/rancher/k3s/config.yaml schreiben.
+Auf dem ersten der 3 Server das Verzeichnis erzeugen:
+  mkdir -p /etc/rancher/k3s/
+Fürs Erste reicht eine Zeile in der config.yaml:
+  disable: traefik
+  05.08.2024: Das System hat die Datei bei Neustart selbständig als
+    /etc/rancher/k3s/k3s.yaml neu angelegt.
+Auf dem ersten Server ist damit alles bereit für die Installation von k3s:
+  sudo su
+  curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+k3s richtet eine frische etcd-Instanz ein.
+
+ systemctl status k3s.server
+  ● k3s.service - Lightweight Kubernetes
+     Loaded: loaded (/etc/systemd/system/k3s.service; enabled; vendor preset: enabled)
+     Active: active (running) since Tue 2024-08-06 14:49:35 CEST; 5min ago
+       Docs: https://k3s.io
+    Process: 214735 ExecStartPre=/bin/sh -xc ! /usr/bin/systemctl is-enabled --quiet nm-cloud-setup.service 2>/dev/null (code=exited, status=0/SUCCESS)
+    Process: 214737 ExecStartPre=/sbin/modprobe br_netfilter (code=exited, status=0/SUCCESS)
+    Process: 214738 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
+   Main PID: 214739 (k3s-server)
+      Tasks: 94
+     Memory: 462.7M
+        CPU: 43.858s
+     CGroup: /system.slice/k3s.service
+             ├─214739 "/usr/local/bin/k3s server" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─214755 "containerd " "" "" "" "" "" "
+             ...
+
+Kubectl - das Dienstprogramm benötigt eine Konfigurationsdatei, die Ihren Server-Endpunkt, CA-Details, Benutzeranmeldeinformationen zur Authentifizierung enthält. Diese Konfigurationsdatei befindet sich unter** home dir/.kube/config **
+Quelle: https://forum.linuxfoundation.org/discussion/864362/couldnt-get-current-server-api-group-list-get-http-localhost-8080-api-timeout-32s-dial-tcp-12
+
+Alternativ: rufe manuell auf
+  sudo su
+  cd /etc/rancher/k3s
+  nohup /usr/local/bin/k3s server &
+anstelle von
+  /usr/local/bin/k3s server --cluster-init (=letzte Zeile des Service-Skriptes /etc/systemd/system/k3s.service)
+
+Jetzt geht
+kubectl get nodes
+NAME          STATUS   ROLES                  AGE     VERSION
+folio-k8s11   Ready    control-plane,master   2m47s   v1.29.5+k3s1
+
+Erzeugen Sie die oben angelegte Konfigurationsdatei auf den anderen beiden Maschinen.
+[weiter auf Seite 43 - "Damit auch die anderen Server als Master in den Cluster aufgenommen werden dürfen,"]
+
+# weiter geht's 26.06.2024
+  Auf dem ersten Server:
+  TOKEN=`cat /var/lib/rancher/k3s/server/token`
+auf Node 2:
+  sudo su
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=$TOKEN sh -s - server --server https://10.9.2.91:6443
+auf Node 3 ebenfalls machen.
+  Bei Neuinstallation zunächst k3s einreißen mit . /usr/local/bin/k3s-uninstall.sh
+
+
+28.06.2024
+   auf lokalem PC (Windows oder Linux) ein Verzeichnis $HOME/.kube anlegen
+   dort eine Datei config anlegen. Den Inhalt von /etc/rancher/k3s/k3s.yaml (vom ersten Server) dort hinein kopieren.
+   Dann die IP-Adresse 127.0.0.1 durch die IP-Adresse oder den DNS-Namen (ohne Domain) eines Servers ersetzen.
+   In Zeile 11 von config dem Kontext einen sprechenderen Namen als "default" geben: hier: folio-k8s1
+   Lokal aufrufen:
+$ cd ~/kube
+$ kubectl config use-context folio-k8s1
+Switched to context "folio-k8s1"
+$ kubectl get nodes
+NAME          STATUS   ROLES                       AGE     VERSION
+folio-k8s11   Ready    control-plane,etcd,master   22h     v1.30.3+k3s1
+folio-k8s12   Ready    control-plane,etcd,master   2m11s   v1.30.3+k3s1
+folio-k8s13   Ready    control-plane,etcd,master   10s     v1.30.3+k3s1
+  
+    "Lens (k8slens.dev) ist eine grafische Oberfläche, die als Anwendung auf Ihrer Maschine läuft und die Kontexte aus der Kubectl-Konfigurationsdatei übernimmt"
+   Lens auf HBZ-Laptop eingerichtet.
+   first-pod.yml von ct.de/wtzd oder auch https://github.com/jamct/kubernetes-einstieg herunter geladen.
+
+   Jetzt geht http://folio-k8s11.hbz-nrw.de:30000/  "Welcome to nginx!"
+
+k3s deinstallieren mit k3s-uninstall.sh . Das aber nicht aus Versehen machen !
+Es löscht auch config.yaml
+  cat /etc/rancher/k3s/k3s.yaml
+    *** Ende des Kapitels ***
+
+# 05.08.2024
+Kapitel "Container, Pods und Deployments", Seite 46
+kubectl delete pod my-first-nginx
+pod "my-first-nginx" deleted
+
+Lokal aufrufen; cd ~/kube
+$ kubectl -f first-pod.yml apply
+pod/my-first-nginx created
+$ kubectl get pods -o wide
+
+https://github.com/jamct/kubernetes-einstieg/blob/main/part-2/first-deployment.yml
+
+Pods in einem Namespace:
+kubectl get pods -w # folgt
+kubectl get pods -n backend
+kubectl get pods --all-namespaces
+kubectl get pods|services|deployments|namespaces
+
+Schöner mit Helm [ Seite 57 ]
+Auf SuSE-Linux-PC: cd ~/kube
+zypper in helm
+helm repo add traefik https://helm.traefik.io/traefik
+"traefik" has been added to your repositories
+helm repo update
+
+Cluster löschen:
+  Auf dem 1. Node: ssh folio@folio-k8s11
+  . /usr/local/bin/k3s-uninstall.sh
+  das auch auf allen anderen Nodes machen.
+Cluster neu aufbauen:
+  curl -sfL https://get.k3s.io | sh -
+    disable: traefik in /etc/rancher/k3s/config.yaml
+  curl -sfL https://get.k3s.io | sh -s - server --cluster-init
+  Einrichten der anderen beiden Nodes:
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' K3S_TOKEN=$TOKEN sh -s - server --server https://10.9.2.91:6443
+  
+  kubectl -f first-deployment.yml apply
+  kubectl -f namespace.yml apply
+  kubectl -f wordpress.yml apply
+
+06.08.2024
+  Das Verzeichnis .kube auch nach /root kopieren, wenn man mit root-Kennung arbeitet!
+  kuss-pc-linux-r217:/home/kuss # cp -pr .kube/ /root
+
+  helm install traefik traefik/traefik
+    Error: INSTALLATION FAILED: Unable to continue with install: IngressClass "traefik" in namespace "" exists and cannot be imported into the current release: invalid ownership metadata; annotation validation error: key "meta.helm.sh/release-namespace" must equal "default": current value is "kube-system"
+
+   Egal, weiter.
+   In wordpress.yml die Kommentierungen entfernen.
+   kubectl -f wordpress.yml apply
+   Jetzt geht http://folio-k8s11.hbz-nrw.de/
+   *** ENDE des Kapitels ***
+
+#   Kafka
+Prepare helm
+
+helm repo add bitnami https://charts.bitnami.com/bitnami
+  "bitnami" has been added to your repositories
+helm repo update 
+  ...Successfully got an update from the "traefik" chart repository
+  ...Successfully got an update from the "bitnami" chart repository
+  Update Complete. ⎈Happy Helming!⎈
+
+    # Helm ist grob wie ein Paketmanager zu verstehen.
+    # Hier kriege ich Default Values her
+    helm show values bitnami/kafka > kafka-default-values.yaml
+    cp kafka-default-values.yaml kafka-hbz-staging-values.yml
+
+    # das ist eine Konfigurationsdatei, die man dem Helm-Chart mitgibt. Das Helm-Chart selber liegt bei bitnami.
+     Helm Chart: https://github.com/bitnami/charts/tree/main/bitnami/kafka
+
+Namensraum für Kafka anlegen:
+  mv namespace.yml namespaces.yml
+  neuen Namensraum folio-staging-v1-kafka eintragen, mit kubectl anwenden.
+
+# Version ist optional.
+
+helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
+NAME: kafka
+LAST DEPLOYED: Fri Aug  9 14:30:51 2024
+NAMESPACE: folio-staging-v1-kafka
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: kafka
+CHART VERSION: 30.0.3
+APP VERSION: 3.8.0
+
+** Please be patient while the chart is being deployed **
+
+Kafka can be accessed by consumers via port 9092 on the following DNS name from within your cluster:
+
+    kafka.folio-staging-v1-kafka.svc.cluster.local
+
+Each Kafka broker can be accessed by producers via port 9092 on the following DNS name(s) from within your cluster:
+
+    kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-1.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-2.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+
+The CLIENT listener for Kafka client connections from within your cluster have been configured with the following security settings:
+    - SASL authentication
+
+To connect a client to your Kafka, you need to create the 'client.properties' configuration files with the content below:
+
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=SCRAM-SHA-256
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+    username="user1" \
+    password="$(kubectl get secret kafka-user-passwords --namespace folio-staging-v1-kafka -o jsonpath='{.data.client-passwords}' | bas
+e64 -d | cut -d , -f 1)";
+
+To create a pod that you can use as a Kafka client run the following commands:
+
+    kubectl run kafka-client --restart='Never' --image docker.io/bitnami/kafka:3.8.0-debian-12-r0 --namespace folio-staging-v1-kafka --
+command -- sleep infinity
+    kubectl cp --namespace folio-staging-v1-kafka /path/to/client.properties kafka-client:/tmp/client.properties
+    kubectl exec --tty -i kafka-client --namespace folio-staging-v1-kafka -- bash
+
+    PRODUCER:
+        kafka-console-producer.sh \
+            --producer.config /tmp/client.properties \
+            --broker-list kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-1
+.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-2.kafka-controller-headless.folio-staging-v1-
+kafka.svc.cluster.local:9092 \
+            --topic test
+
+    CONSUMER:
+        kafka-console-consumer.sh \
+            --consumer.config /tmp/client.properties \
+            --bootstrap-server kafka.folio-staging-v1-kafka.svc.cluster.local:9092 \
+            --topic test \
+            --from-beginning
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production
+ installations, please set the following values according to your workload needs:
+  - controller.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+⚠ SECURITY WARNING: Original containers have been substituted. This Helm chart was designed, tested, and validated on multiple platform
+s using a specific set of Bitnami and Tanzu Application Catalog containers. Substituting other containers is likely to cause degraded s
+ecurity and performance, broken chart features, and missing environment variables.
+
+Substituted images detected:
+  - docker.io/bitnami/kafka:3.8.0-debian-12-r0
+  - docker.io/bitnami/kubectl:1.30.3-debian-12-r4
+
+helm -n folio-staging-v1-kafka delete kafka
+
+# was läuft alles ?
+  kubectl get pods --all-namespaces
+  Kafka Log anzeigen:
+    kubectl logs -n folio-staging-v1-kafka kafka-controller-0
+  Log streamen / folgen:
+    kubectl logs -n folio-staging-v1-kafka --follow=true kafka-controller-0
+
+
+# Set another PVC Size
+
+#helm -n folio-finc-v1-kafka install kafka -f values-ubl-staging.yaml --set-string controller.persistence.size=8Gi bitnami/kafka --version 26.11.3 --debug
+
+-----------------------------------------------------------------
+
+  als nächstes Storage / Volumes einrichten
+  https://docs.k3s.io/storage#setting-up-the-local-storage-provider
+
+  dann Namespaces einrichten. Kafka braucht ein eigenes Namespace. Erl.
+
+   Ingress Controller, Load Balancer
+   
+   mit Werkzeug "Helm" vertraut machen.
+   Elasticsearch mit Helm installieren.
+   Okapi auf Kubernetes installieren.
+        https://github.com/indexdata/okapi-helm
+   Alles installieren wie auch in der Single Server Doku, nur mit anderen Tools machen.
+     s. hier; aber das wird sich bei mir nicht installieren lassen (z.B. andere StorageClasses)
+     https://gitlab.bib-bvb.de/folio-public/folio-helm
+
+07.08.2024
+Hier finden Sie alle Beispiele zum mehrteiligen Einstieg in den Container-Orchestrator Kubernetes. Die zugehörigen Artikel erscheinen seit Ende 2022 gedruckt in c’t und bei Heise+. Hier finden Sie alle Artikel:
+  https://github.com/jamct/kubernetes-einstieg
+
+weiter mit "Geheimnisse im Cluster", Seite 62.
+
+Installation postgresql
+***********************
+helm search repo postgresql
+NAME                    CHART VERSION   APP VERSION     DESCRIPTION                                       
+bitnami/postgresql      15.5.20         16.3.0          PostgreSQL (Postgres) is an open source object-...
+bitnami/postgresql-ha   14.2.16         16.3.0          This PostgreSQL cluster solution includes the P...
+bitnami/supabase        5.3.3           1.24.5          Supabase is an open source Firebase alternative...
+
+Default Installation von PostgreSQL mit Helm (Quelle: https://www.trion.de/news/2022/03/01/postgres-mit-helm-in-kubernetes.html)
+helm install -n backend pg bitnami/postgresql --set volumePermissions.enabled=true
+NAME: pg
+LAST DEPLOYED: Wed Aug  7 16:38:17 2024
+NAMESPACE: backend
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: postgresql
+CHART VERSION: 15.5.20
+APP VERSION: 16.3.0
+
+** Please be patient while the chart is being deployed **
+
+PostgreSQL can be accessed via port 5432 on the following DNS names from within your cluster:
+
+    pg-postgresql.backend.svc.cluster.local - Read/Write connection
+
+To get the password for "postgres" run:
+
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace backend pg-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+
+To connect to your database run the following command:
+
+    kubectl run pg-postgresql-client --rm --tty -i --restart='Never' --namespace backend --image docker.io/bitnami/postgresql:16.3.0-debian-12-r23 --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+      --command -- psql --host pg-postgresql -U postgres -d postgres -p 5432
+
+    > NOTE: If you access the container using bash, make sure that you execute "/opt/bitnami/scripts/postgresql/entrypoint.sh /bin/bash" in order to avoid the error "psql: local user with ID 1001} does not exist"
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace backend svc/pg-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
+
+WARNING: The configured password will be ignored on new installation in case when previous PostgreSQL release was deleted through the helm command. In that case, old PVC will have an old password, and setting it through helm won't take effect. Deleting persistent volumes (PVs) will solve the issue.
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production installations, please set the following values according to your workload needs:
+  - primary.resources
+  - readReplicas.resources
+  - volumePermissions.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+s. auch hier: https://github.com/bitnami/charts/tree/main/bitnami/postgresql/#installing-the-chart
+oder installiere ohne Helm: https://www.sumologic.com/blog/kubernetes-deploy-postgres/
+und so wird man es wieder los:
+  helm delete -n backend pg
+
+Am Ende von Seite 66:
+kubectl -f wordpress-with-pvc.yml apply
+  deployment.apps/wb-database-deployment configured
+  deployment.apps/wb-web-deployment configured
+http://folio-k8s11.hbz-nrw.de/
+  Error establishing a database connection
+ kubectl logs -n backend wb-database-deployment-86d8c6747d-9crdt
+   liefert keine Informationen
+
+*** FOLIO-Installation
+helm repo add bvb-repo https://gitlab.bib-bvb.de/api/v4/projects/128/packages/helm/stable
+git clone https://gitlab.bib-bvb.de/folio-public/folio-helm
+cd folio-helm
+cp global-values-example.yaml global-values.yaml
+- das Volume mit einer Kubernetes Speicherklasse nutzen !
+  nas-vm1:/export/folio-kubernetes-storage 1073741824      3072 1071627264   1% /storage
+
+Installieren Sie elasticsearch
+weiter mit bitnami/elasticsearch-values.yml
+  dann : helm install elasticsearch bitnami/elasticsearch -f bitnami/elastic-values.yml
+
+08.08.2024
+Wordpress mit persistent Volume Claim
+um das Volume zu nutzen, fehlten noch diese Charts:
+kubectl -f pvc.yml apply
+kubectl -f wordpress-secrets.yml apply
+
+Jetzt müsste sich das komplette Wordpress-Beispiel so deployen lassen:
+kubectl -f wordpress-namespaces.yml apply
+kubectl -f wordpress-pvc.yml apply
+kubectl -f wordpress-secrets.yml apply
+kubectl -f wordpress-deployments.yml apply
+
+# gucken, welche Pods jetzt wo laufen:
+kubectl get pods -n backend -o wide
+kubectl get pods -n frontend -o wide
+
+# wie kann ich Befehle in dem Container ausführen ?
+kubectl exec -h
+kubectl exec deploy/wp-database-deployment -i -t -- bash -il
+  Error from server (NotFound): deployments.apps "wp-database-deployment" not found
+PVC ist aber hier angelegt:
+  root@folio-k8s12:/var/lib/rancher/k3s/storage/pvc-e033ae74-2465-45dd-8611-50efc29dcef4_backend_pvc-wp-db/
+    und darin sind meine Datenbank-Files!
+Jetzt aufrufen:
+  http://folio-k8s11.hbz-nrw.de   user: wp  passw: secretWp
+Aber irgendwie passiert auf der Seite nichts. In den PVC wird aber geschrieben (Benutzer wp)
+
+ kubectl logs -n backend --follow=true wp-database-deployment-654f8676c6-ksbw4  # sieht gut aus
+
+# 09.08.2024
+Grafische Oberfläche: default Kubernetes Dashboard
+  https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+Was ich editiere (YAML-Dateien) sind Manifestationen von Helm-Charts
+HashiCorp: Ein Passwort-Store, der Secrets ablegen kann (s. Frankfurt Workshop)
+
+https://gitlab.bib-bvb.de/folio-public/
+Create/copy Secrets
+  "das brauchen wir nicht mehr"  "Secrtes, um auf das Repo zuzugreigen"
+  "eigentliche Passwörter werden beim Anlegen automatisch in Kubernetes angelegt; kubectl get secrets"
+Helm Charts und 3 Repos, aus denen Images gebaut werden
+Tools; das was ICH bei Single Server auf dem Terminal mache
+https://gitlab.bib-bvb.de/folio-public/folio-tools/container_registry
+Templates: https://gitlab.bib-bvb.de/folio-public/folio-helm/-/blob/main/okapi/templates/okapi.deployment.yaml?ref_type=heads
+
+Installation Helm auf Windows über https://github.com/helm/helm/releases ;
+  funktioniert jetzt; mit Hilfe der Kollegen
+
+"kafka-values.yaml" muss ich zwingend anpassen
+  => Kafka heute, zusammen mit den Kollegen, erfolgreich installiert :-) Es kommen keine Fehlermeldungen beim Install.
+     Die logs sehen gut aus.
+      helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka
+      kubectl logs -n folio-staging-v1-kafka --follow kafka-controller-0
+
+Pullen von Florians Repo:
+  - inkuss klonen
+  - bvb als remote hinzufügen:  git remote add bvb https://gitlab.bib-bvb.de/folio-public/folio-helm.git
+  - git pull bvb main
+global-values wird noch benutzt, aber immer weniger. Florian K. macht eine Anpassung bis 23.08.
+Zwischenzeitlich könnte ich einen Ingress mit nginx installieren
+erst postgres installieren, dann kann man schon mit Okapi anfangen ; Florian K. zieht Okapi aus privatem Repo, aber eigentlich gibt es dazu keinen Grund mehr
+
+# 12.08.2024
+Installation Kubernetes Dashboard
+folge https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+  helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+  helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --create-namespace --namespace kubernetes-dashboard
+Congratulations! You have just installed Kubernetes Dashboard in your cluster.
+To access Dashboard run:
+  kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+  Gehe nach https://localhost:8443
+  Token für Service-Konto generieren mit: kubectl -n kubernetes-dashboard create token admin
+    error: failed to create token: serviceaccounts "admin" not found
+Erstellen eines Beispielbenutzers (folge https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md)
+  "In diesem Leitfaden erfahren wir, wie wir einen neuen Benutzer mit dem Service-Konto-Mechanismus von Kubernetes erstellen, diesen Benutzer Admin-Berechtigungen gewähren und dem Dashboard mit einem Inhabertoken Token, der an diesen Benutzer gebunden ist, ein Anmeldekonto erteilen."
+  Ein Servicekonto anlegen
+  vim kubernetes-dashboard/dashboard-adminuser.yml
+  kubectl apply -f dashboard-adminuser.yml
+    serviceaccount/admin-user created
+  Einen ClusterRoleBinding erstellen
+  vim clusterRoleBinding.yml
+  kubectl apply -f clusterRoleBinding.yml
+  Ein Träger-Token für ServiceAccount erhalten
+  Jetzt müssen wir das Token finden, mit dem wir uns anmelden können. Führen Sie folgenden Befehl aus:
+    kubectl -n kubernetes-dashboard create token admin-user
+  Erhalten Sie einen langlebigen Bären-Token für ServiceAccount
+    Wir können auch ein Token mit dem Geheimnis erstellen, das das Dienstkonto gebunden hat und der Token im Geheimnis gespeichert wird.
+    vim secret.yml
+    kubectl -f secret.yml apply
+      secret/admin-user created
+  Nachdem das Geheimnis erstellt wurde, können wir den folgenden Befehl ausführen, um das im Geheimnis gespeicherten Token zu erhalten:
+    kubectl get secret admin-user -n kubernetes-dashboard -o jsonpath={".data.token"} | base64 -d
+ # Überprüfen Sie https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#manually-create-a-long-lived-api-token-for-a-serviceaccount für weitere Informationen über langlebige API-Token für einen ServiceAccount.
+ # Um mehr darüber zu erfahren, wie man in Kubernetes die offizielle Authentifizierungs- und Autorisierungsdokumentation liest:
+   # https://kubernetes.io/docs/reference/access-authn-authz/authentication/
+   # https://kubernetes.io/docs/reference/access-authn-authz/authorization/
+  Zugang zu Dashboard
+  Kopieren Sie nun das Token und fügen Sie es in das "Enter token"-Feld auf dem Login-Bildschirm ein:
+    https://localhost:8443/#/login
+    -> angemeldet mit Token
+
+  weiter im Text https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/#deploying-containerized-applications
+  "Einsatz von Containeranwendungen
+Mit dem Dashboard können Sie eine containerisierte Anwendung als Bereitstellung und optionalen Service mit einem einfachen Assistenten erstellen und bereitstellen. Sie können entweder Anwendungsdetails manuell angeben oder eine YAML- oder JSON-Manifestdatei mit Anwendungskonfiguration hochladen."
+#-----------------------------------------
+
+Secrets speichern mit HashiCorp Vault
+  https://developer.hashicorp.com/vault/tutorials/secrets-management/static-secrets
+  Installation Vault aus dem Quellcode
+  "Um aus der Quelle zu kompilieren, benötigen Sie Go installiert und richtig konfiguriert (einschließlich GOPATHUmgebungsvariablensatz)"
+Secrets in KeePassXC + NextCloud speichern
+--------------------------------------
