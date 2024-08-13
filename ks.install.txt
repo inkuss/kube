@@ -492,3 +492,37 @@ Postgres Installation
   helm repo add bvb-repo https://gitlab.bib-bvb.de/api/v4/projects/128/packages/helm/stable
   helm install zal-pg bvb-repo/zalando-pg -f ~/folio-helm-hbz/global-values.yaml
     Error: INSTALLATION FAILED: template: zalando-pg/templates/postgresql.yaml:26:20: executing "zalando-pg/templates/postgresql.yaml" at <.Values.backup>: nil pointer evaluating interface {}.backup
+    so nicht; nicht von einem gitlab-Repo installieren, in das ich nicht schreiben kann.
+
+Weiter mit c't Artikel, Kapitel "Kubernetes-YAML mit Helm verpacken", Zeile 84ff
+ mkdir helm; cd helm
+ helm create my-app # Helm erzeugt ein Beispielpaket
+
+Überpüfen des Helm-Pakets zalando-pg
+  Wechsele in das Verzeichnis des von mir angelegten und geklonten Repos:
+  cd folio-helm-hbz
+  helm template -f global-values.yaml zalando-pg
+    Error: template: zalando-pg/templates/postgresql.yaml:26:20: executing "zalando-pg/templates/postgresql.yaml" at <.Values.backup>: nil pointer evaluating interface {}.backup 
+ postgres.yaml editieren => geht jetzt, liefert gültiges YAML
+ Fragezeichen:
+  - storageClass
+       storageClass: "local-path"   in postgres.yaml -- da muss ich bestimmt noch mehr definieren
+  - bvb secrets
+      imagePullSecrets:
+        - name: gitlab-folio-group
+  - bvb images
+   containers:
+      - name: release-name-create-folio-dbs
+        image: gitlab.bib-bvb.de:5050/folio/folio-tools:debian-v1.3
+
+Die Anwendung im Cluster installieren (s.88):
+helm install -f global-values.yaml zalando-pg ./zalando-pg
+Error: INSTALLATION FAILED: unable to build kubernetes objects from release manifest: resource mapping not found for name: "folio-zal-pg" namespace: "" from "": no matches for kind "postgresql" in version "acid.zalan.do/v1" ensure CRDs are installed first 
+  - das kommt aus postgres.yaml, "kind: postgresql"
+  CRD = custom resource definitions; kubectl get crd
+
+helm repo add postgres-operator-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+helm install  postgres-operator postgres-operator-charts/postgres-operator
+läuft es ?
+   kubectl --namespace=default get pods -l "app.kubernetes.io/name=postgres-operator"
+helm install -f global-values.yaml zalando-pg ./zalando-pg
