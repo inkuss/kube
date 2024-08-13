@@ -485,3 +485,10 @@ Helm Charts und 3 Repos, aus denen Images gebaut werden:
 https://gitlab.bib-bvb.de/folio-public/folio-tools/container_registry
 https://gitlab.bib-bvb.de/folio-public/folio-helm/-/blob/main/okapi/templates/okapi.deployment.yaml?ref_type=heads
 Erst postgres installieren, dann kann man schon mit Okapi anfangen 
+
+# 13.08.2024
+Postgres Installation 
+  kubectl create namespace folio-backend
+  helm repo add bvb-repo https://gitlab.bib-bvb.de/api/v4/projects/128/packages/helm/stable
+  helm install zal-pg bvb-repo/zalando-pg -f ~/folio-helm-hbz/global-values.yaml
+    Error: INSTALLATION FAILED: template: zalando-pg/templates/postgresql.yaml:26:20: executing "zalando-pg/templates/postgresql.yaml" at <.Values.backup>: nil pointer evaluating interface {}.backup
