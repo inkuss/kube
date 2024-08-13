@@ -525,4 +525,8 @@ helm repo add postgres-operator-charts https://opensource.zalando.com/postgres-o
 helm install  postgres-operator postgres-operator-charts/postgres-operator
 läuft es ?
    kubectl --namespace=default get pods -l "app.kubernetes.io/name=postgres-operator"
+ja. Nun erneut:
 helm install -f global-values.yaml zalando-pg ./zalando-pg
+  Error: INSTALLATION FAILED: failed post-install: 1 error occurred:
+        * timed out waiting for the condition
+ 
