@@ -1,4 +1,14 @@
 21.06.2024 Ingolf
+ vor Arbeitsbeginn zu tun:
+ - Starte Kubernetes-Dashboard (lokal):
+     kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+     [ Fenster muss offen bleiben ]
+ - Erhalte ein Token für Kubernetes Dashboard:
+     kubectl get secret admin-user -n kubernetes-dashboard -o jsonpath={".data.token"} | base64 -d
+ - Zugang zu Dashboard
+    Kopieren Sie nun das Token und fügen Sie es in das "Enter token"-Feld auf dem Login-Bildschirm ein:
+    https://localhost:8443/#/login
+
 # Einrichtung von kubectl auf dem lokalen PC
 - Damit sie von der lokalen Maschine aus mit dem Cluster arbeiten können, brauchen sie das offizielle 
   Kubernetes-Kommandozeilenwerkzeug "kubectl".
@@ -526,7 +536,20 @@ helm install  postgres-operator postgres-operator-charts/postgres-operator
 läuft es ?
    kubectl --namespace=default get pods -l "app.kubernetes.io/name=postgres-operator"
 ja. Nun erneut:
-helm install -f global-values.yaml zalando-pg ./zalando-pg
+cd ~/folio-helm-hbz/
+  helm install -f global-values.yaml zal-pg ./zalando-pg
   Error: INSTALLATION FAILED: failed post-install: 1 error occurred:
         * timed out waiting for the condition
- 
+   kubectl logs --follow folio-zal-pg-0
+    das Log ist leer
+
+15.08.2024
+  Postgres wieder entfernen:
+  helm delete zalando-pg
+These resources were kept due to the resource policy:
+[Secret] folio-db-secret
+[Secret] pg-superuser-secret
+
+release "zal-pg" uninstalled
+ Problem mit Speicherklasse ? Siehe https://github.com/zalando/postgres-operator/issues/1761 
+ Doku https://postgres-operator.readthedocs.io/en/refactoring-sidecars/user/
