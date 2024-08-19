@@ -545,7 +545,7 @@ cd ~/folio-helm-hbz/
 
 15.08.2024
   Postgres wieder entfernen:
-  helm delete zalando-pg
+  helm delete zal-pg
 These resources were kept due to the resource policy:
 [Secret] folio-db-secret
 [Secret] pg-superuser-secret
@@ -553,3 +553,31 @@ These resources were kept due to the resource policy:
 release "zal-pg" uninstalled
  Problem mit Speicherklasse ? Siehe https://github.com/zalando/postgres-operator/issues/1761 
  Doku https://postgres-operator.readthedocs.io/en/refactoring-sidecars/user/
+
+19.08.
+  kuebctl describe pods (im Namespace default)
+     Name:             create-pgsuperuser-89km4
+     Job/create-pgsuperuser
+     Image:         gitlab.bib-bvb.de:5050/folio/folio-tools:debian-v1.3
+     Args:
+      kube-scripts/create-pgsuperuser.sh
+    State:          Waiting
+      Reason:       ImagePullBackOff
+    Ready:          False
+    Events:
+  Type     Reason                           Age                        From     Message
+  ----     ------                           ----                       ----     -------
+  Warning  FailedToRetrieveImagePullSecret  2m51s (x25417 over 3d19h)  kubelet  Unable to retrieve some image pull secrets (gitlab-folio-group); attempting to pull the image may not succeed.
+
+Name:             folio-zal-pg-0
+Events:
+  Type     Reason            Age                     From               Message
+  ----     ------            ----                    ----               -------
+  Warning  FailedScheduling  17m (x1101 over 3d19h)  default-scheduler  0/3 nodes are available: 3 Insufficient cpu. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.
+
+Name:             postgres-operator-8bc78d9f8-tzhhm
+Events:                      <none>
+
+Mal im Namensraum folio-backend errichten:
+  helm delete zal-pg
+  helm install -n folio-backend -f global-values.yaml zal-pg ./zalando-pg
