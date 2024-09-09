@@ -581,3 +581,8 @@ Events:                      <none>
 Mal im Namensraum folio-backend errichten:
   helm delete zal-pg
   helm install -n folio-backend -f global-values.yaml zal-pg ./zalando-pg
+
+09.09.
+  mit Ingress beschäftigen, in okapi-helm einbauen
+    der PG-Host heißt "folio-zal-pg", der Okapi-Host "okapi". Der Okapi-Host muss von außen erreichbar sein, 
+     z.B. über https://folio-k8s1.folio.hbz-nrw.de/okapi
