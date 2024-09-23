@@ -490,7 +490,6 @@ Secrets speichern mit HashiCorp Vault
 Secrets in KeePassXC + NextCloud speichern
 --------------------------------------
 
-hier weiter:
 Helm Charts und 3 Repos, aus denen Images gebaut werden:
 https://gitlab.bib-bvb.de/folio-public/folio-tools/container_registry
 https://gitlab.bib-bvb.de/folio-public/folio-helm/-/blob/main/okapi/templates/okapi.deployment.yaml?ref_type=heads
@@ -588,7 +587,8 @@ Mal im Namensraum folio-backend errichten:
      z.B. über https://folio-k8s1.folio.hbz-nrw.de/okapi
 
 23.09.2023
-Kafka aktualisieren:
+# Kafka aktualisieren:
+# ******************
   cd ~/folio/kube
      Die kafka-hbz-staging-values.yaml editieren.
 # Kafka aktualisieren schlägt fehl:
@@ -666,3 +666,72 @@ Substituted images detected:
 
 # Kafka Log anzeigen:
   kubectl logs -n folio-staging-v1-kafka --follow=true kafka-controller-0
+
+# Installation Elasticsearch
+# **************************
+  helm repo update
+  helm show values bitnami/elasticsearch > elasticsearch-default-values.yaml
+    cp elasticsearch-default-values.yaml elasticsearch-hbz-staging-values.yml
+    # Anpassungen aus BVB-Datei bitnami/elastic-values.yaml übernehmen;
+    # isbd. "plugins"-Parameter setzen!
+
+    # Helm Chart: https://github.com/bitnami/charts/tree/main/bitnami/elasticsearch
+
+  # Im Namensraum folio-backend installieren:
+  helm -n folio-backend install -f elasticsearch-hbz-staging-values.yml elasticsearch bitnami/elasticsearch
+NAME: elasticsearch
+LAST DEPLOYED: Mon Sep 23 20:56:21 2024
+NAMESPACE: folio-backend
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: elasticsearch
+CHART VERSION: 21.3.17
+APP VERSION: 8.15.1
+
+-------------------------------------------------------------------------------
+ WARNING
+
+    Elasticsearch requires some changes in the kernel of the host machine to
+    work as expected. If those values are not set in the underlying operating
+    system, the ES containers fail to boot with ERROR messages.
+
+    More information about these requirements can be found in the links below:
+
+      https://www.elastic.co/guide/en/elasticsearch/reference/current/file-descriptors.html
+      https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html
+
+    This chart uses a privileged initContainer to change those settings in the Kernel
+    by running: sysctl -w vm.max_map_count=262144 && sysctl -w fs.file-max=65536
+
+** Please be patient while the chart is being deployed **
+
+  Elasticsearch can be accessed within the cluster on port 9200 at elasticsearch.folio-backend.svc.cluster.local
+
+  To access from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace folio-backend svc/elasticsearch 9200:9200 &
+    curl http://127.0.0.1:9200/
+
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production installations, please set the following values according to your workload needs:
+  - copyTlsCerts.resources
+  - sysctlImage.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+# Scheint funktioniert zu haben. Vielleicht auf den 3 hosts noch jeweils diese hier machen ?
+root@folio-k8s11:/usr/folio#  sysctl -w vm.max_map_count=262144 && sysctl -w fs.file-max=65536
+vm.max_map_count = 262144
+fs.file-max = 65536
+
+# Elasticsearch Log anzeigen:
+   kubectl logs -n folio-backend --follow=true elasticsearch-master-0
+   kubectl logs -n folio-backend --follow=true elasticsearch-master-1
+   kubectl logs -n folio-backend --follow=true elasticsearch-master-2
+     ok, kommen INFO messages
+
+# Das ist ziemlich viel Holz: Diese Pods: elasticsearch-ingest-0/1, elasticsearch-coordinating-0/1, elasticsearch-data-0/1/2, elasticsearch-master-0/1/2 ; 10 Pods => vielleicht doch noch einmal neu in einem eigenen Namensraum installieren ?
+  hier weiter
+
+  das Cluster ist allerdings "unhealthy" ; siehe "Events" : "Readiness Probe failed"
