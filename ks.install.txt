@@ -586,3 +586,83 @@ Mal im Namensraum folio-backend errichten:
   mit Ingress beschäftigen, in okapi-helm einbauen
     der PG-Host heißt "folio-zal-pg", der Okapi-Host "okapi". Der Okapi-Host muss von außen erreichbar sein, 
      z.B. über https://folio-k8s1.folio.hbz-nrw.de/okapi
+
+23.09.2023
+Kafka aktualisieren:
+  cd ~/folio/kube
+     Die kafka-hbz-staging-values.yaml editieren.
+# Kafka aktualisieren schlägt fehl:
+  helm repo upgrade
+  helm -n folio-staging-v1-kafka upgrade kafka -f kafka-hbz-staging-values.yml bitnami/kafka
+Error: UPGRADE FAILED: "kafka" has no deployed releases
+# Daher Kafka deinstallieren & neu installieren:
+  helm -n folio-staging-v1-kafka delete kafka
+  helm -n folio-staging-v1-kafka install kafka -f kafka-hbz-staging-values.yml bitnami/kafka
+NAME: kafka
+LAST DEPLOYED: Mon Sep 23 19:50:32 2024
+NAMESPACE: folio-staging-v1-kafka
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: kafka
+CHART VERSION: 30.1.4
+APP VERSION: 3.8.0
+
+** Please be patient while the chart is being deployed **
+
+Kafka can be accessed by consumers via port 9092 on the following DNS name from within your cluster:
+
+    kafka.folio-staging-v1-kafka.svc.cluster.local
+
+Each Kafka broker can be accessed by producers via port 9092 on the following DNS name(s) from within your cluster:
+
+    kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-1.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+    kafka-controller-2.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092
+
+The CLIENT listener for Kafka client connections from within your cluster have been configured with the following security settings:
+    - SASL authentication
+
+To connect a client to your Kafka, you need to create the 'client.properties' configuration files with the content below:
+
+
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=SCRAM-SHA-256
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+    username="user1" \
+    password="$(kubectl get secret kafka-user-passwords --namespace folio-staging-v1-kafka -o jsonpath='{.data.client-passwords}' | base64 -d | cut -d , -f 1)";
+
+To create a pod that you can use as a Kafka client run the following commands:
+
+    kubectl run kafka-client --restart='Never' --image docker.io/bitnami/kafka:3.8.0-debian-12-r0 --namespace folio-staging-v1-kafka --command -- sleep infinity
+    kubectl cp --namespace folio-staging-v1-kafka /path/to/client.properties kafka-client:/tmp/client.properties
+    kubectl exec --tty -i kafka-client --namespace folio-staging-v1-kafka -- bash
+
+    PRODUCER:
+        kafka-console-producer.sh \
+            --producer.config /tmp/client.properties \
+            --broker-list kafka-controller-0.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-1.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092,kafka-controller-2.kafka-controller-headless.folio-staging-v1-kafka.svc.cluster.local:9092 \
+            --topic test
+
+    CONSUMER:
+        kafka-console-consumer.sh \
+            --consumer.config /tmp/client.properties \
+            --bootstrap-server kafka.folio-staging-v1-kafka.svc.cluster.local:9092 \
+            --topic test \
+            --from-beginning
+
+WARNING: There are "resources" sections in the chart not set. Using "resourcesPreset" is not recommended for production. For production installations, please set the following values according to your workload needs:
+  - controller.resources
++info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+⚠ SECURITY WARNING: Original containers have been substituted. This Helm chart was designed, tested, and validated on multiple platforms using a specific set of Bitnami and Tanzu Application Catalog containers. Substituting other containers is likely to cause degraded security and performance, broken chart features, and missing environment variables.
+
+Substituted images detected:
+  - docker.io/bitnami/kafka:3.8.0-debian-12-r0
+  - docker.io/bitnami/kubectl:1.30.3-debian-12-r4
+  - docker.io/bitnami/os-shell:12-debian-12-r27
+  - docker.io/bitnami/jmx-exporter:1.0.1-debian-12-r5
+
+# Kafka Log anzeigen:
+  kubectl logs -n folio-staging-v1-kafka --follow=true kafka-controller-0

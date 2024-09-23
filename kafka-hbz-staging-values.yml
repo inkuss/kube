@@ -18,9 +18,9 @@ global:
   ## imagePullSecrets:
   ##   - myRegistryKeySecretName
   ##
-  imagePullSecrets: []
+  imagePullSecrets: [ folio-hbz-dockerhub-key ]
   defaultStorageClass: ""
-  storageClass: ""
+  storageClass: "local-path"
   ## Compatibility adaptations for Kubernetes platforms
   ##
   compatibility:
@@ -45,6 +45,8 @@ fullnameOverride: ""
 ## @param clusterDomain Default Kubernetes cluster domain
 ##
 clusterDomain: cluster.local
+autoCreateTopicsEnable: true
+defaultReplicationFactor: "3"
 ## @param commonLabels Labels to add to all deployed objects
 ##
 commonLabels: {}
@@ -103,7 +105,7 @@ image:
   ## pullSecrets:
   ##   - myRegistryKeySecretName
   ##
-  pullSecrets: []
+  pullSecrets: [ folio-hbz-dockerhub-key ]
   ## Set to true if you would like to see extra information on logs
   ##
   debug: false
@@ -148,7 +150,7 @@ log4j: ""
 existingLog4jConfigMap: ""
 ## @param heapOpts Kafka Java Heap size
 ##
-heapOpts: -Xmx1024m -Xms1024m
+heapOpts: -Xmx2048m -Xms2048m
 ## @param brokerRackAssignment Set Broker Assignment for multi tenant environment Allowed values: `aws-az`
 ## ref: https://cwiki.apache.org/confluence/display/KAFKA/KIP-392%3A+Allow+consumers+to+fetch+from+closest+replica
 ##
@@ -2427,7 +2429,7 @@ zookeeper:
   ##
   persistence:
     enabled: true
-    storageClass: ""
+    storageClass: "local-path"
     accessModes:
       - ReadWriteOnce
     size: 8Gi
