@@ -775,3 +775,6 @@ The CLIENT listener for Kafka client connections from within your cluster have b
 To connect a client to your Kafka, you need to create the 'client.properties' configuration files with the content below:
   ....
    Die Pods kafka-controller-0, kafka-controller-1, kafka-controller-2 und der ServiceAccount kafka sind jetzt auch im Namensraum kafka erfolgreich angelegt worden.
+
+  Alles im Namensraum löschen:
+  helm -n folio-staging-v1-kafka delete kafka
