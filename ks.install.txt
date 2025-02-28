@@ -28,13 +28,17 @@
 
 
 25.06.2024
-Quelle: ht.2023.06_ctKubernetes-SB (c't - Artikel aus dem Juni 2023)
+Quelle: hb.2023.06_ctKubernetes-SB (c't - Artikel aus dem Juni 2023)
 Loslegen - Seite 42
 Für die ersten Gehversuche - und auch für kleine und mittelgroße Cluster - 
   empfehlen wir die Kubernetes-Distribution k3s.
 Kubernetes-Installation mit k3s
 Die k3s-Konfiguration in eine YAML-Datei namens /etc/rancher/k3s/config.yaml schreiben.
 Auf dem ersten der 3 Server das Verzeichnis erzeugen:
+  virtuelle Maschinen in einem VM-Ware Cluster
+  BS: Ubuntu 22.04.5 LTS
+  300 GB HD (pro Server)
+  je 4 vCPUs, 24 GB RAM.  Bei Single Server miminum 40 GB.
   mkdir -p /etc/rancher/k3s/
 Fürs Erste reicht eine Zeile in der config.yaml:
   disable: traefik
@@ -169,6 +173,8 @@ Cluster neu aufbauen:
    Jetzt geht http://folio-k8s11.hbz-nrw.de/
    *** ENDE des Kapitels ***
 
+
+# Hier weiter Demo 28.02.2025
 #   Kafka
 Prepare helm
 
