@@ -1,0 +1,55 @@
+autoCreateTopicsEnable: true
+clusterDomain: cluster.local
+controller:
+  heapOpts: -Xmx1024m -Xms1024m
+  persistence:
+    accessMode: ReadWriteOnce
+    enabled: true
+    size: 2Gi
+    storageClass: "local-path"
+  resources:
+    limits:
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 2Gi
+defaultReplicationFactor: "3"
+externalAccess:
+  enabled: false
+extraConfig:
+  default.replication.factor: 3
+  log.flush.interval.messages: 3600000
+  log.retention.hours: 24
+  num.io.threads: 10
+  num.network.threads: 5
+  num.partitions: 5
+  socket.receive.buffer.bytes: 102400
+  socket.request.max.bytes: 104857600
+  socket.send.buffer.bytes: 102400
+global:
+  storageClass: "local-path"
+# kraft:
+  # clusterId: xxxxx
+listeners:
+  client:
+    containerPort: 9092
+    name: CLIENT
+    protocol: PLAINTEXT
+    sslClientAuth: ""
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 120
+  timeoutSeconds: 10
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 120
+  timeoutSeconds: 10
+replicaCount: "3"
+#sasl:
+#  controller:
+#    password: xxxxx
+#  interbroker:
+#    password: xxxxx
+#sasl.interbroker.password: xxxxx
+zookeeper:
+  enabled: false

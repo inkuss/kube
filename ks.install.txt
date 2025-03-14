@@ -784,3 +784,127 @@ To connect a client to your Kafka, you need to create the 'client.properties' co
 
   Alles im Namensraum löschen:
   helm -n folio-staging-v1-kafka delete kafka
+
+14.03.2025
+  Die Datei kafka-hbz-staging-values.yml ist nicht ins git-Repo übernommen worden bzw. nur als symbolischer Link.
+  Sie enthält sensitive Informationen und ist nur im hbz-internen gitlab-Repo "folio-hbz" angelegt worden.
+  Unter Windows funktioniert das auschecken eines symbolischen Links nicht. Dort muss die Datei explizit z.B. so angelegt werden:
+  cd ~/folio/kube
+  ln -s ../folio-helm-hbz/folio-hbz/kafka-hbz-staging-values.yml
+  Nun noch einmal kafka im Namesnraum folio-backend aktualisieren:
+  helm -n folio-backend upgrade kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
+Release "kafka" has been upgraded. Happy Helming!
+NAME: kafka
+LAST DEPLOYED: Fri Mar 14 13:42:57 2025
+NAMESPACE: folio-backend
+STATUS: deployed
+REVISION: 3
+TEST SUITE: None
+NOTES:
+CHART NAME: kafka
+CHART VERSION: 24.0.8
+APP VERSION: 3.5.1
+
+** Please be patient while the chart is being deployed **
+
+Kafka can be accessed by consumers via port 9092 on the following DNS name from within your cluster:
+
+    kafka.folio-backend.svc.cluster.local
+
+Each Kafka broker can be accessed by producers via port 9092 on the following DNS name(s) from within your cluster:
+
+    kafka-controller-0.kafka-controller-headless.folio-backend.svc.cluster.local:9092
+    kafka-controller-1.kafka-controller-headless.folio-backend.svc.cluster.local:9092
+    kafka-controller-2.kafka-controller-headless.folio-backend.svc.cluster.local:9092
+
+The CLIENT listener for Kafka client connections from within your cluster have been configured with the following security settings:
+    - SASL authentication
+
+To connect a client to your Kafka, you need to create the 'client.properties' configuration files with the content below:
+
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=SCRAM-SHA-256
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+    username="user1" \
+    password="$(kubectl get secret kafka-user-passwords --namespace folio-backend -o jsonpath='{.data.client-passwords}' | base64 -d | cut -d , -f 1)";
+
+To create a pod that you can use as a Kafka client run the following commands:
+
+    kubectl run kafka-client --restart='Never' --image docker.io/bitnami/kafka:3.8.0-debian-12-r0 --namespace folio-backend --command -- sleep infinity
+    kubectl cp --namespace folio-backend /path/to/client.properties kafka-client:/tmp/client.properties
+    kubectl exec --tty -i kafka-client --namespace folio-backend -- bash
+
+    PRODUCER:
+        kafka-console-producer.sh \
+            --producer.config /tmp/client.properties \
+            --broker-list kafka-controller-0.kafka-controller-headless.folio-backend.svc.cluster.local:9092,kafka-controller-1.kafka-controller-headless.folio-backend.svc.cluster.local:9092,kafka-controller-2.kafka-controller-headless.folio-backend.svc.cluster.local:9092 \
+            --topic test
+
+    CONSUMER:
+        kafka-console-consumer.sh \
+            --consumer.config /tmp/client.properties \
+            --bootstrap-server kafka.folio-backend.svc.cluster.local:9092 \
+            --topic test \
+            --from-beginning
+
+------
+  Braucht man einen "Kafka Client" ? Oder reicht der "Kafka Broker" ?
+  - bis auf ein Secret hat sich nichts verändert!
+  Daher kafka noch einmal entfernen und komplett neu installieren:
+  helm -n folio-backend delete kafka
+  Den Service-Account "kafka" im Namensraum folio-backend manuell löschen.
+  helm -n folio-backend install kafka -f kafka-hbz-staging-values.yml bitnami/kafka  --version 24.0.8 --set-string controller.persistence.size=8Gi
+  Error: INSTALLATION FAILED: 1 error occurred:
+        * serviceaccounts "kafka" already exists
+
+
+   Das hat nicht geklappt. Es werden zwar 3 Pods angelegt, aber die erkennen sich gegenseitig nicht:
+   [2025-03-14 12:59:15,180] INFO [RaftManager id=0] Node 1 disconnected. (org.apache.kafka.clients.NetworkClient)
+[2025-03-14 12:59:15,180] WARN [RaftManager id=0] Connection to node 1 (kafka-controller-1.kafka-controller-headless.folio-backend.svc.cluster.local/10.42.2.210:9093) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2025-03-14 12:59:15,272] INFO [MetadataLoader id=0] initializeNewPublishers: the loader is still catching up because we still don't know the high water mark yet. (org.apache.kafka.image.loader.MetadataLoader)
+ 
+  Schließlich stürzen die Pods auch ab:
+  [2025-03-14 13:00:03,805] ERROR [RaftManager id=1] Graceful shutdown of RaftClient failed (org.apache.kafka.raft.KafkaRaftClientDriver)
+java.util.concurrent.TimeoutException: Timeout expired before graceful shutdown completed
+ at org.apache.kafka.raft.KafkaRaftClient$GracefulShutdown.failWithTimeout(KafkaRaftClient.java:2659)
+ at org.apache.kafka.raft.KafkaRaftClient.maybeCompleteShutdown(KafkaRaftClient.java:2374)
+ at org.apache.kafka.raft.KafkaRaftClient.poll(KafkaRaftClient.java:2443)
+ at org.apache.kafka.raft.KafkaRaftClientDriver.doWork(KafkaRaftClientDriver.java:62)
+ at org.apache.kafka.server.util.ShutdownableThread.run(ShutdownableThread.java:135)
+[2025-03-14 13:00:03,805] INFO [kafka-1-raft-io-thread]: Stopped (org.apache.kafka.raft.KafkaRaftClientDriver)
+[2025-03-14 13:00:03,805] INFO [kafka-1-raft-io-thread]: Shutdown completed (org.apache.kafka.raft.KafkaRaftClientDriver)
+[2025-03-14 13:00:03,807] INFO [MetadataLoader id=1] initializeNewPublishers: the loader is still catching up because we still don't know the high water mark yet. (org.apache.kafka.image.loader.MetadataLoader)
+[2025-03-14 13:00:03,811] INFO [kafka-1-raft-outbound-request-thread]: Shutting down (org.apache.kafka.raft.KafkaNetworkChannel$SendThread)
+[2025-03-14 13:00:03,811] INFO [kafka-1-raft-outbound-request-thread]: Stopped (org.apache.kafka.raft.KafkaNetworkChannel$SendThread)
+[2025-03-14 13:00:03,811] INFO [kafka-1-raft-outbound-request-thread]: Shutdown completed (org.apache.kafka.raft.KafkaNetworkChannel$SendThread)
+
+  - kafka-bvb-staging..-yaml (von Florian) verwenden, meine Storage Class darin ergänzen (local-path).
+  - die PVCs für Kafka löschen
+  - Speicher von der Suchmaschine reduzieren und den von der Datenbank erhöhen.
+    z.Zt elasticsearch 4 x 8 Gib, postgres 2 x 5 GB
+    Florian: 70 GB persistenter Speicher für die Datenbank
+             8 Pods a 8 GB RAM, (2 Bibliotheken)
+
+	   kubectl describe -n folio-backend pod kafka-controller-1
+	   Events:
+  Type     Reason            Age                   From               Message
+  ----     ------            ----                  ----               -------
+  Warning  FailedScheduling  11m                   default-scheduler  0/3 nodes are available: 3 Insufficient memory. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.
+
+  Ghassen: wahrscheinlich liegt es nicht am Speicher, sondern an RAM und CPU.
+
+   - Neue Datei  kafka-bvb-staging-values.yml mit Florian erstellt.
+   helm -n folio-backend delete kafka
+   helm -n folio-backend install kafka -f kafka-bvb-staging-values.yml bitnami/kafka  --version 25.1.8
+   kubectl describe -n folio-backend pod kafka-controller-1
+
+   kubectl logs -n folio-backend kafka-controller-0
+   kubectl get deployment -A  (alle Namespaces; wieviel Speicher wird belegt ?)
+
+   Die Persistent Volumes für Kafka können nicht angelegt werden. Deswegen werden die Kafka Pods nicht grün.
+   Nachdem ich den Speicher eines PV auf 4Gi (von 8 Gi) reduziert hatte (in kafka-bvb-staging-values.yml), konnte man wenigstens ein PV anlegen.
+
+  Meldugen von Kubernetes (k3s):
+  folio@folio-k8s12:~$ sudo journalctl --since today -u k3s
+
+  Florian: Am Disc Space liegt es nicht. RAM + CPU Usage untersuchen.
