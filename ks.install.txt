@@ -908,3 +908,14 @@ java.util.concurrent.TimeoutException: Timeout expired before graceful shutdown 
   folio@folio-k8s12:~$ sudo journalctl --since today -u k3s
 
   Florian: Am Disc Space liegt es nicht. RAM + CPU Usage untersuchen.
+
+19.08.2025
+  Der Start des Kubernetes-Dashboards funktioniert nicht mehr (sowohl im hbz als auch im Homeoffice):
+  - Das Zertifikat ist aber nicht abgelaufen:
+    login auf folio@k8s11; sudo su; cd /etc/rancher/k3s
+    Kopiere die Zeichenkette hinter "client-certificate-data: " aus k3s.yaml in den Puffer
+    echo "<Puffer>" | base64 -d | openssl x509 -text
+            Validity
+            Not Before: Aug  5 16:24:56 2024 GMT
+            Not After : Jul 16 16:43:10 2026 GMT
+    ==> die Datei folio-k8s11:/etc/rancher/k3s/k3s.yaml nach localhost:/.kube/config zu kopieren hat geholfen. Das Zertifikat ist auf dem Server erneuert worden (?). Nicht vergessen, danach im lokaen config die IP zu ändern (localhost => 10.9.1.92), und den Clusternamen zu ändern => folio-k8s1. Danach ging es wieder.
