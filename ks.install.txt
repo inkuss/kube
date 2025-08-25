@@ -918,4 +918,5 @@ java.util.concurrent.TimeoutException: Timeout expired before graceful shutdown 
             Validity
             Not Before: Aug  5 16:24:56 2024 GMT
             Not After : Jul 16 16:43:10 2026 GMT
-    ==> die Datei folio-k8s11:/etc/rancher/k3s/k3s.yaml nach localhost:/.kube/config zu kopieren hat geholfen. Das Zertifikat ist auf dem Server erneuert worden (?). Nicht vergessen, danach im lokaen config die IP zu ändern (localhost => 10.9.1.92), und den Clusternamen zu ändern => folio-k8s1. Danach ging es wieder.
+22.08.2025
+    ==> die Datei folio-k8s11:/etc/rancher/k3s/k3s.yaml nach localhost:/.kube/config zu kopieren hat geholfen. Das Zertifikat ist auf dem Server erneuert worden (?). Nicht vergessen, danach im lokalen config die IP zu ändern (localhost => 10.9.1.92, https:// bleibt), und den Clusternamen zu ändern => folio-k8s1. Danach ging es wieder.
